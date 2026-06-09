@@ -17,6 +17,8 @@ interface TaskModalState {
   mode: 'create' | 'edit';
   task?: Task;
   initialValues?: TaskFormValues;
+  assistantNotice?: string;
+  suggestedTimes?: string[];
 }
 
 const NAV_ITEMS: Array<{ view: AppView; label: string; icon: string }> = [
@@ -42,13 +44,14 @@ export function App() {
   const { startListening } = useVoiceRecognition({
     onTranscript: (transcript) => {
       const parsed = parseSpanishTaskCommand(transcript);
+      const assistantNotice = parsed.confirmationReasons.join(' ');
       setActiveView('assistant');
       setVoiceStatus(
         parsed.confidence === 'complete'
-          ? `Detecté “${parsed.draft.title}”. Revisá y guardá.`
-          : `Detecté texto, pero falta completar: ${parsed.missing.join(', ')}.`,
+          ? parsed.summary
+          : `${parsed.summary} Confirmá: ${assistantNotice}`,
       );
-      openCreateTask(parsed.draft);
+      openCreateTask(parsed.draft, assistantNotice, parsed.detected.suggestedTimes);
     },
   });
 
@@ -63,13 +66,13 @@ export function App() {
     setActiveView('today');
   }
 
-  function openCreateTask(initialValues?: TaskFormValues | string) {
+  function openCreateTask(initialValues?: TaskFormValues | string, assistantNotice?: string, suggestedTimes?: string[]) {
     const values =
       typeof initialValues === 'string'
         ? { date: initialValues, time: '09:00' }
         : (initialValues ?? { date: selectedDate, time: '09:00' });
 
-    setTaskModal({ mode: 'create', initialValues: values });
+    setTaskModal({ mode: 'create', initialValues: values, assistantNotice, suggestedTimes });
   }
 
   function openEditTask(task: Task) {
@@ -131,7 +134,13 @@ export function App() {
     }
 
     if (activeView === 'assistant') {
-      return <AssistantPanel onCreateDraft={(draft) => openCreateTask(draft)} />;
+      return (
+        <AssistantPanel
+          onCreateDraft={(parsed) =>
+            openCreateTask(parsed.draft, parsed.confirmationReasons.join(' '), parsed.detected.suggestedTimes)
+          }
+        />
+      );
     }
 
     if (activeView === 'settings') {
@@ -268,6 +277,8 @@ export function App() {
             <TaskForm
               task={taskModal.task}
               initialValues={taskModal.initialValues}
+              assistantNotice={taskModal.assistantNotice}
+              suggestedTimes={taskModal.suggestedTimes}
               onCancel={() => setTaskModal(null)}
               onSubmit={handleTaskSubmit}
             />

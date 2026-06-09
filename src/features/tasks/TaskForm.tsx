@@ -6,6 +6,8 @@ import { todayInputValue } from '../../shared/date';
 interface TaskFormProps {
   task?: Task;
   initialValues?: TaskFormValues;
+  assistantNotice?: string;
+  suggestedTimes?: string[];
   onCancel: () => void;
   onSubmit: (draft: TaskDraft) => Promise<void>;
 }
@@ -32,7 +34,7 @@ function buildInitialDraft(task?: Task, initialValues?: TaskFormValues): TaskDra
   };
 }
 
-export function TaskForm({ task, initialValues, onCancel, onSubmit }: TaskFormProps) {
+export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes, onCancel, onSubmit }: TaskFormProps) {
   const [draft, setDraft] = useState<TaskDraft>(() => buildInitialDraft(task, initialValues));
   const [isSaving, setIsSaving] = useState(false);
 
@@ -54,6 +56,12 @@ export function TaskForm({ task, initialValues, onCancel, onSubmit }: TaskFormPr
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {assistantNotice ? (
+        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+          {assistantNotice}
+        </div>
+      ) : null}
+
       <div>
         <label className="aura-label" htmlFor="task-title">
           Título
@@ -107,6 +115,20 @@ export function TaskForm({ task, initialValues, onCancel, onSubmit }: TaskFormPr
             onChange={(event) => setDraft((current) => ({ ...current, time: event.target.value }))}
             required
           />
+          {suggestedTimes?.length ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {suggestedTimes.map((time) => (
+                <button
+                  key={time}
+                  type="button"
+                  onClick={() => setDraft((current) => ({ ...current, time }))}
+                  className="rounded-xl bg-amber-100 px-3 py-2 text-xs font-black text-amber-900 transition hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-100"
+                >
+                  Usar {time}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
 
