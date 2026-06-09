@@ -1,5 +1,6 @@
 import type { Task } from '../../domain/tasks/task';
 import { TASK_COLORS } from '../../domain/tasks/task';
+import { recurrenceLabel } from '../../domain/tasks/recurrence';
 
 interface TaskCardProps {
   task: Task;
@@ -55,6 +56,11 @@ export function TaskCard({ task, onEdit, onDelete, onToggleCompleted }: TaskCard
           ) : null}
 
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            {task.recurrenceType && task.recurrenceType !== 'none' ? (
+              <span className="rounded-full bg-cyan-50 px-3 py-1 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-200">
+                {recurrenceLabel(task)}
+              </span>
+            ) : null}
             {task.reminderEnabled ? (
               <span className="rounded-full bg-violet-50 px-3 py-1 text-violet-700 dark:bg-violet-500/10 dark:text-violet-200">
                 Alarma {task.reminderMinutesBefore} min antes{task.reminderSilent ? ' · sin sonido' : ''}

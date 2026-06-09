@@ -10,6 +10,10 @@ interface ParserExpectation {
   reminderEnabled?: boolean;
   reminderSilent?: boolean;
   reminderMinutesBefore?: number;
+  recurrenceType?: string;
+  recurrenceDaysOfWeek?: number[];
+  recurrenceDaysOfMonth?: number[];
+  recurrenceInterval?: number;
 }
 
 export const SPANISH_TASK_PARSER_INTERNAL_CASES: ParserExpectation[] = [
@@ -137,6 +141,65 @@ export const SPANISH_TASK_PARSER_INTERNAL_CASES: ParserExpectation[] = [
     reminderEnabled: true,
     reminderMinutesBefore: 60,
   },
+  {
+    input: 'entrenar todos los martes y jueves a las 18',
+    title: 'Entrenar',
+    date: '2026-06-16',
+    time: '18:00',
+    recurrenceType: 'weekdays',
+    recurrenceDaysOfWeek: [2, 4],
+    recurrenceInterval: 1,
+  },
+  {
+    input: 'tomar medicación día sí día no a las 9',
+    title: 'Tomar medicación',
+    date: '2026-06-09',
+    time: '09:00',
+    recurrenceType: 'alternate-days',
+    recurrenceInterval: 2,
+  },
+  {
+    input: 'revisar facturas todos los días 1 de cada mes a las 12',
+    title: 'Revisar facturas',
+    date: '2026-07-01',
+    time: '12:00',
+    recurrenceType: 'month-days',
+    recurrenceDaysOfMonth: [1],
+  },
+  {
+    input: 'cardio cada 3 días a las 8',
+    title: 'Cardio',
+    date: '2026-06-09',
+    time: '08:00',
+    recurrenceType: 'custom-days',
+    recurrenceInterval: 3,
+  },
+  {
+    input: 'reunión semanal los lunes a las 10',
+    title: 'Reunión',
+    date: '2026-06-15',
+    time: '10:00',
+    recurrenceType: 'weekdays',
+    recurrenceDaysOfWeek: [1],
+  },
+  {
+    input: 'tarea mensual el día 15 a las 9',
+    title: 'Tarea',
+    date: '2026-06-15',
+    time: '09:00',
+    recurrenceType: 'month-days',
+    recurrenceDaysOfMonth: [15],
+  },
+  {
+    input: 'entrenar martes y jueves a las 18 con alarma 30 minutos antes',
+    title: 'Entrenar',
+    date: '2026-06-16',
+    time: '18:00',
+    reminderEnabled: true,
+    reminderMinutesBefore: 30,
+    recurrenceType: 'weekdays',
+    recurrenceDaysOfWeek: [2, 4],
+  },
 ];
 
 export function runSpanishTaskParserInternalTests() {
@@ -156,6 +219,20 @@ export function runSpanishTaskParserInternalTests() {
       parsed.draft.reminderMinutesBefore === testCase.reminderMinutesBefore
         ? undefined
         : `reminderMinutesBefore: ${parsed.draft.reminderMinutesBefore}`,
+      testCase.recurrenceType === undefined || parsed.draft.recurrenceType === testCase.recurrenceType
+        ? undefined
+        : `recurrenceType: ${parsed.draft.recurrenceType}`,
+      testCase.recurrenceInterval === undefined || parsed.draft.recurrenceInterval === testCase.recurrenceInterval
+        ? undefined
+        : `recurrenceInterval: ${parsed.draft.recurrenceInterval}`,
+      testCase.recurrenceDaysOfWeek === undefined ||
+      parsed.draft.recurrenceDaysOfWeek?.join('|') === testCase.recurrenceDaysOfWeek.join('|')
+        ? undefined
+        : `recurrenceDaysOfWeek: ${parsed.draft.recurrenceDaysOfWeek?.join('|')}`,
+      testCase.recurrenceDaysOfMonth === undefined ||
+      parsed.draft.recurrenceDaysOfMonth?.join('|') === testCase.recurrenceDaysOfMonth.join('|')
+        ? undefined
+        : `recurrenceDaysOfMonth: ${parsed.draft.recurrenceDaysOfMonth?.join('|')}`,
     ].filter(Boolean);
 
     return {

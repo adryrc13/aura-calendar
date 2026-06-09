@@ -1,4 +1,4 @@
-import type { TaskFormValues } from '../../domain/tasks/task';
+import type { RecurrenceType, TaskFormValues } from '../../domain/tasks/task';
 import { todayInputValue, toDateInputValue } from '../../shared/date';
 
 export type MissingTaskField = 'title' | 'date' | 'time';
@@ -43,6 +43,14 @@ interface ReminderParseResult {
   enabled: boolean;
   silent: boolean;
   minutesBefore: number;
+}
+
+interface RecurrenceParseResult {
+  type: RecurrenceType;
+  interval: number;
+  daysOfWeek: number[];
+  daysOfMonth: number[];
+  label?: string;
 }
 
 const MONTHS: Record<string, number> = {
@@ -108,6 +116,7 @@ const HOUR_TOKEN_PATTERN = ['[01]?\\d', '2[0-3]', ...Object.keys(NUMBER_WORDS)].
 const REMINDER_ACTION_PATTERN =
   '(?:activar\\s+recordatorio|con\\s+recordatorio|recordatorio|con\\s+alarma|alarma|avisame|avisar|recuerdame)';
 const REMINDER_AMOUNT_PATTERN = `(${NUMBER_TOKEN_PATTERN})\\s+(minutos?|horas?)\\s+antes`;
+const WEEKDAY_LIST_PATTERN = `(?:${WEEKDAY_PATTERN})(?:\\s+y\\s+(?:${WEEKDAY_PATTERN}))*`;
 const ES_DETAILED_DATE_FORMATTER = new Intl.DateTimeFormat('es-ES', {
   day: 'numeric',
   month: 'long',
@@ -323,7 +332,7 @@ function parseWeekdayDate(normalized: string, referenceDate: Date): DateParseRes
 }
 
 function parseDayOnlyDate(normalized: string, referenceDate: Date): DateParseResult | undefined {
-  const match = normalized.match(/\b(?:el\s+)?dia\s+([1-9]|[12]\d|3[01])\b/);
+  const match = normalized.match(/\b(?:el\s+)?dias?\s+([1-9]|[12]\d|3[01])\b/);
 
   if (!match) return undefined;
 
@@ -451,6 +460,102 @@ function parseReminder(normalized: string, guidedAlarm?: string, guidedReminder?
   };
 }
 
+function parseRecurrence(normalized: string): RecurrenceParseResult {
+  const weekdays = extractWeekdays(normalized);
+  const monthDays = extractMonthDays(normalized);
+  const customDays = new RegExp(`\\bcada\\s+(${NUMBER_TOKEN_PATTERN})\\s+dias?\\b`).exec(normalized);
+  const customWeeks = new RegExp(`\\bcada\\s+(${NUMBER_TOKEN_PATTERN})\\s+semanas?\\b`).exec(normalized);
+
+  if (/\bdia\s+si\s+dia\s+no\b/.test(normalized)) {
+    return { type: 'alternate-days', interval: 2, daysOfWeek: [], daysOfMonth: [], label: 'día sí, día no' };
+  }
+
+  if (customDays) {
+    const interval = parseNumberToken(customDays[1]) ?? 1;
+    return { type: 'custom-days', interval, daysOfWeek: [], daysOfMonth: [], label: `cada ${interval} días` };
+  }
+
+  if (customWeeks) {
+    const interval = parseNumberToken(customWeeks[1]) ?? 1;
+    return { type: 'custom-weeks', interval, daysOfWeek: weekdays, daysOfMonth: [], label: `cada ${interval} semanas` };
+  }
+
+  if (/\banual\b/.test(normalized)) {
+    return { type: 'yearly', interval: 1, daysOfWeek: [], daysOfMonth: [], label: 'anual' };
+  }
+
+  if (/\bmensual\b/.test(normalized) || /\bde\s+cada\s+mes\b/.test(normalized) || monthDays.length > 1) {
+    return {
+      type: monthDays.length ? 'month-days' : 'monthly',
+      interval: 1,
+      daysOfWeek: [],
+      daysOfMonth: monthDays,
+      label: monthDays.length ? `mensual día ${monthDays.join(' y ')}` : 'mensual',
+    };
+  }
+
+  if (/\btodos?\s+los?\s+dias\b/.test(normalized)) {
+    return { type: 'daily', interval: 1, daysOfWeek: [], daysOfMonth: [], label: 'diaria' };
+  }
+
+  if (/\bsemanal\b/.test(normalized) || new RegExp(`\\btodos?\\s+los?\\s+${WEEKDAY_LIST_PATTERN}\\b`).test(normalized)) {
+    return {
+      type: weekdays.length ? 'weekdays' : 'weekly',
+      interval: 1,
+      daysOfWeek: weekdays,
+      daysOfMonth: [],
+      label: weekdays.length ? `semanal ${formatWeekdayList(weekdays)}` : 'semanal',
+    };
+  }
+
+  if (weekdays.length > 1) {
+    return {
+      type: 'weekdays',
+      interval: 1,
+      daysOfWeek: weekdays,
+      daysOfMonth: [],
+      label: `semanal ${formatWeekdayList(weekdays)}`,
+    };
+  }
+
+  return { type: 'none', interval: 1, daysOfWeek: [], daysOfMonth: [] };
+}
+
+function extractWeekdays(normalized: string) {
+  const days = Object.entries(WEEKDAYS)
+    .filter(([weekday]) => new RegExp(`\\b${weekday}\\b`).test(normalized))
+    .map(([, value]) => value);
+
+  return Array.from(new Set(days)).sort((a, b) => a - b);
+}
+
+function extractMonthDays(normalized: string) {
+  const monthDayMatches = Array.from(
+    normalized.matchAll(/\b(?:dias?|dia)\s+([1-9]|[12]\d|3[01])(?:\s+y\s+([1-9]|[12]\d|3[01]))?(?:\s+de\s+cada\s+mes)?\b/g),
+  );
+  const monthlyMatches = Array.from(normalized.matchAll(/\bmensual\s+(?:el\s+)?dia\s+([1-9]|[12]\d|3[01])\b/g));
+  const days = [...monthDayMatches.flatMap((match) => [match[1], match[2]]), ...monthlyMatches.map((match) => match[1])]
+    .filter(Boolean)
+    .map(Number)
+    .filter((day) => day >= 1 && day <= 31);
+
+  return Array.from(new Set(days)).sort((a, b) => a - b);
+}
+
+function formatWeekdayList(days: number[]) {
+  const labels: Record<number, string> = {
+    0: 'domingo',
+    1: 'lunes',
+    2: 'martes',
+    3: 'miércoles',
+    4: 'jueves',
+    5: 'viernes',
+    6: 'sábado',
+  };
+
+  return days.map((day) => labels[day]).filter(Boolean).join(' y ');
+}
+
 type GuidedFieldName = 'tarea' | 'fecha' | 'hora' | 'alarma' | 'recordatorio';
 
 function extractGuidedFields(input: string) {
@@ -500,6 +605,22 @@ const REMINDER_TITLE_PATTERNS = [
   /\brecuerdame\b/g,
 ];
 
+const RECURRENCE_TITLE_PATTERNS = [
+  /\bdia\s+si\s+dia\s+no\b/g,
+  new RegExp(`\\btodos?\\s+los?\\s+${WEEKDAY_LIST_PATTERN}\\b`, 'g'),
+  new RegExp(`\\blos?\\s+(?:${WEEKDAY_PATTERN})\\b`, 'g'),
+  new RegExp(`\\b(?:${WEEKDAY_PATTERN})(?:\\s+y\\s+(?:${WEEKDAY_PATTERN}))+\\b`, 'g'),
+  new RegExp(`\\bcada\\s+(?:${NUMBER_TOKEN_PATTERN})\\s+dias?\\b`, 'g'),
+  new RegExp(`\\bcada\\s+(?:${NUMBER_TOKEN_PATTERN})\\s+semanas?\\b`, 'g'),
+  /\btodos?\s+los?\s+dias?\s+([1-9]|[12]\d|3[01])(?:\s+y\s+([1-9]|[12]\d|3[01]))?\s+de\s+cada\s+mes\b/g,
+  /\b(?:dias?|dia)\s+([1-9]|[12]\d|3[01])(?:\s+y\s+([1-9]|[12]\d|3[01]))?\s+de\s+cada\s+mes\b/g,
+  /\btodos?\s+los?\s+dias?\b/g,
+  /\bmensual\s+(?:el\s+)?dia\s+([1-9]|[12]\d|3[01])\b/g,
+  /\bsemanal\b/g,
+  /\bmensual\b/g,
+  /\banual\b/g,
+];
+
 function removeNormalizedMatches(original: string, patterns: RegExp[]) {
   return patterns.reduce((current, pattern) => {
     const normalized = normalize(current);
@@ -517,7 +638,7 @@ function removeNormalizedMatches(original: string, patterns: RegExp[]) {
 
 function removeCommandPhrases(original: string) {
   return cleanupTitle(
-    removeNormalizedMatches(original, REMINDER_TITLE_PATTERNS)
+    removeNormalizedMatches(original, [...REMINDER_TITLE_PATTERNS, ...RECURRENCE_TITLE_PATTERNS])
       .replace(/\bav[ií]same\s+(?:\d{1,3}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+(?:minutos?|horas?)\s+antes\s+de\s*/gi, ' ')
       .replace(/\brecu[eé]rdame\s+(?:\d{1,3}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+(?:minutos?|horas?)\s+antes\s+de\s*/gi, ' ')
       .replace(/\bav[ií]same\s+(?:\d{1,3}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+(?:minutos?|horas?)\s+antes\b/gi, ' ')
@@ -531,7 +652,7 @@ function removeCommandPhrases(original: string) {
       .replace(/\bdentro\s+de\s+(?:\d{1,3}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+(?:d[ií]as?|semanas?)\b/gi, ' ')
       .replace(/\b(?:el\s+)?(?:pr[oó]ximo\s+)?(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+([1-9]|[12]\d|3[01])\b/gi, ' ')
       .replace(/\b(?:el\s+)?(?:pr[oó]ximo\s+)?(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/gi, ' ')
-      .replace(/\b(?:el\s+)?d[ií]a\s+([1-9]|[12]\d|3[01])\b/gi, ' ')
+      .replace(/\b(?:el\s+)?d[ií]as?\s+([1-9]|[12]\d|3[01])\b/gi, ' ')
       .replace(/\ba\s+las?\s+(?:[01]?\d|2[0-3]|una?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|diecis[eé]is|diecisiete|dieciocho|diecinueve|veinte|veintiuno|veintid[oó]s|veintitr[eé]s)(?::[0-5]\d)?(?:\s+(?:y\s+media|y\s+cuarto|menos\s+cuarto))?(?:\s+(?:de\s+la\s+)?(?:ma[nñ]ana|tarde|noche))?\b/gi, ' ')
       .replace(/\bcon\s+(?:alarma|recordatorio)\b/gi, ' ')
       .replace(/\bsin\s+alarma\b/gi, ' ')
@@ -541,13 +662,20 @@ function removeCommandPhrases(original: string) {
   );
 }
 
-function createSummary(title: string, dateLabel: string | undefined, time: string | undefined, reminder: ReminderParseResult) {
+function createSummary(
+  title: string,
+  dateLabel: string | undefined,
+  time: string | undefined,
+  reminder: ReminderParseResult,
+  recurrence: RecurrenceParseResult,
+) {
   const pieces = [title || 'Título pendiente', dateLabel ?? 'fecha pendiente', time ?? 'hora pendiente'];
   const alarm = reminder.enabled ? 'alarma activada' : 'sin alarma';
   const sound = reminder.enabled ? (reminder.silent ? 'sonido silencioso' : 'sonido activado') : 'sonido no aplica';
   const minutes = reminder.enabled ? `${reminder.minutesBefore} min antes` : undefined;
+  const recurrenceLabel = recurrence.type !== 'none' ? `, repetición ${recurrence.label ?? recurrence.type}` : '';
 
-  return `Detectado: ${pieces.join(' — ')} — ${alarm}, ${sound}${minutes ? `, ${minutes}` : ''}.`;
+  return `Detectado: ${pieces.join(' — ')} — ${alarm}, ${sound}${minutes ? `, ${minutes}` : ''}${recurrenceLabel}.`;
 }
 
 export function parseSpanishTaskCommand(input: string, options: ParseOptions = {}): ParsedTaskCommand {
@@ -561,6 +689,9 @@ export function parseSpanishTaskCommand(input: string, options: ParseOptions = {
   const date = parseDate(dateSource, referenceDate);
   const time = parseTime(timeSource, Boolean(guidedFields?.hora));
   const reminder = parseReminder(normalized, guidedFields?.alarma, guidedFields?.recordatorio);
+  const recurrence = parseRecurrence(normalized);
+  const recurrenceDate = date.value ?? (recurrence.type !== 'none' ? todayInputValue() : undefined);
+  const recurrenceDateLabel = date.label ?? (recurrence.type !== 'none' ? formatHumanDate(referenceDate) : undefined);
 
   const confirmationReasons = [date.confirmationReason, time.confirmationReason].filter(Boolean) as string[];
   const missing: MissingTaskField[] = [];
@@ -570,7 +701,7 @@ export function parseSpanishTaskCommand(input: string, options: ParseOptions = {
     confirmationReasons.push('Falta confirmar el título.');
   }
 
-  if (!date.value) {
+  if (!recurrenceDate) {
     missing.push('date');
     confirmationReasons.push('Falta confirmar la fecha.');
   }
@@ -583,7 +714,7 @@ export function parseSpanishTaskCommand(input: string, options: ParseOptions = {
   const draft: TaskFormValues = {
     title,
     description: transcript ? `Creada desde asistente: "${transcript}"` : '',
-    date: date.value ?? todayInputValue(),
+    date: recurrenceDate ?? todayInputValue(),
     time: time.value ?? '09:00',
     color: 'violet',
     textColor: '#ffffff',
@@ -591,6 +722,12 @@ export function parseSpanishTaskCommand(input: string, options: ParseOptions = {
     reminderEnabled: reminder.enabled,
     reminderMinutesBefore: reminder.minutesBefore,
     reminderSilent: reminder.silent,
+    recurrenceType: recurrence.type,
+    recurrenceInterval: recurrence.interval,
+    recurrenceDaysOfWeek: recurrence.daysOfWeek,
+    recurrenceDaysOfMonth: recurrence.daysOfMonth,
+    exceptionDates: [],
+    modifiedOccurrences: {},
   };
 
   return {
@@ -599,7 +736,7 @@ export function parseSpanishTaskCommand(input: string, options: ParseOptions = {
     missing,
     confirmationReasons,
     confidence: missing.length || confirmationReasons.length ? 'needs-confirmation' : 'complete',
-    summary: createSummary(title, date.label, time.value, reminder),
+    summary: createSummary(title, recurrenceDateLabel, time.value, reminder, recurrence),
     detected: {
       title,
       date: date.value,
