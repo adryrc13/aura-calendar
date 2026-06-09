@@ -105,6 +105,9 @@ const MONTH_PATTERN = Object.keys(MONTHS).join('|');
 const WEEKDAY_PATTERN = Object.keys(WEEKDAYS).join('|');
 const NUMBER_TOKEN_PATTERN = ['\\d{1,3}', ...Object.keys(NUMBER_WORDS)].join('|');
 const HOUR_TOKEN_PATTERN = ['[01]?\\d', '2[0-3]', ...Object.keys(NUMBER_WORDS)].join('|');
+const REMINDER_ACTION_PATTERN =
+  '(?:activar\\s+recordatorio|con\\s+recordatorio|recordatorio|con\\s+alarma|alarma|avisame|avisar|recuerdame)';
+const REMINDER_AMOUNT_PATTERN = `(${NUMBER_TOKEN_PATTERN})\\s+(minutos?|horas?)\\s+antes`;
 const ES_DETAILED_DATE_FORMATTER = new Intl.DateTimeFormat('es-ES', {
   day: 'numeric',
   month: 'long',
@@ -404,35 +407,35 @@ function parseTime(normalized: string, allowBareTime = false): TimeParseResult {
   };
 }
 
-function parseReminderMinutes(normalized: string) {
-  const minutesMatcher = new RegExp(`\\b(?:avisame|recuerdame)\\s+(${NUMBER_TOKEN_PATTERN})\\s+minutos?\\s+antes\\b`);
-  const minutesMatch = normalized.match(minutesMatcher);
+function parseReminderMinutes(value: string) {
+  const normalized = normalize(value);
+  const withActionMatcher = new RegExp(`\\b${REMINDER_ACTION_PATTERN}\\s+${REMINDER_AMOUNT_PATTERN}\\b`);
+  const bareAmountMatcher = new RegExp(`\\b${REMINDER_AMOUNT_PATTERN}\\b`);
+  const match = normalized.match(withActionMatcher) ?? normalized.match(bareAmountMatcher);
 
-  if (minutesMatch) {
-    return parseNumberToken(minutesMatch[1]);
-  }
+  if (!match) return undefined;
 
-  const hoursMatcher = new RegExp(`\\b(?:avisame|recuerdame)\\s+(${NUMBER_TOKEN_PATTERN})\\s+horas?\\s+antes\\b`);
-  const hoursMatch = normalized.match(hoursMatcher);
+  const amount = parseNumberToken(match[1]);
+  const unit = match[2];
 
-  if (hoursMatch) {
-    const hours = parseNumberToken(hoursMatch[1]);
-    return hours === undefined ? undefined : hours * 60;
-  }
+  if (amount === undefined) return undefined;
 
-  return undefined;
+  return unit.startsWith('hora') ? amount * 60 : amount;
 }
 
-function parseReminder(normalized: string, guidedAlarm?: string): ReminderParseResult {
+function parseReminder(normalized: string, guidedAlarm?: string, guidedReminder?: string): ReminderParseResult {
   const alarmText = guidedAlarm ? normalize(guidedAlarm) : '';
-  const fullText = guidedAlarm ? alarmText : normalized;
-  const minutes = parseReminderMinutes(normalized) ?? parseReminderMinutes(alarmText);
+  const reminderText = guidedReminder ? normalize(guidedReminder) : '';
+  const fullText = [normalized, alarmText, reminderText].filter(Boolean).join(' ');
+  const minutes = parseReminderMinutes(fullText);
   const explicitNoAlarm = /\bsin\s+alarma\b/.test(normalized) || /\b(no|ninguna)\b/.test(alarmText);
   const silent = /\bsin\s+sonido\b/.test(fullText) || /\balarma\s+silenciosa\b/.test(fullText) || /\bsilencios[ao]\b/.test(alarmText);
   const explicitEnabled =
+    new RegExp(`\\b${REMINDER_ACTION_PATTERN}\\b`).test(fullText) ||
     /\bcon\s+(alarma|recordatorio)\b/.test(normalized) ||
     /\brecuerdame\b/.test(normalized) ||
     /\bavisame\b/.test(normalized) ||
+    /\bavisar\b/.test(normalized) ||
     /\b(si|sí|con|alarma|recordatorio)\b/.test(alarmText) ||
     silent ||
     minutes !== undefined;
@@ -448,15 +451,17 @@ function parseReminder(normalized: string, guidedAlarm?: string): ReminderParseR
   };
 }
 
+type GuidedFieldName = 'tarea' | 'fecha' | 'hora' | 'alarma' | 'recordatorio';
+
 function extractGuidedFields(input: string) {
-  const matches = Array.from(input.matchAll(/\b(tarea|fecha|hora|alarma)\b\s*:?\s*/giu));
+  const matches = Array.from(input.matchAll(/\b(tarea|fecha|hora|alarma|recordatorio)\b\s*:?\s*/giu));
 
   if (matches.length < 2) return undefined;
 
-  const fields: Partial<Record<'tarea' | 'fecha' | 'hora' | 'alarma', string>> = {};
+  const fields: Partial<Record<GuidedFieldName, string>> = {};
 
   matches.forEach((match, index) => {
-    const label = normalize(match[1]) as 'tarea' | 'fecha' | 'hora' | 'alarma';
+    const label = normalize(match[1]) as GuidedFieldName;
     const start = (match.index ?? 0) + match[0].length;
     const end = matches[index + 1]?.index ?? input.length;
     const value = input.slice(start, end).replace(/^[\s,.;:]+|[\s,.;:]+$/g, '').trim();
@@ -479,9 +484,40 @@ function cleanupTitle(value: string) {
   return `${trimmed.charAt(0).toLocaleUpperCase('es-ES')}${trimmed.slice(1)}`;
 }
 
+const REMINDER_TITLE_PATTERNS = [
+  new RegExp(`\\b${REMINDER_ACTION_PATTERN}\\s+${REMINDER_AMOUNT_PATTERN}(?:\\s+de\\s+)?`, 'g'),
+  new RegExp(`\\b${REMINDER_AMOUNT_PATTERN}\\b`, 'g'),
+  /\balarma\s+silenciosa\b/g,
+  /\bsin\s+sonido\b/g,
+  /\bsin\s+alarma\b/g,
+  /\bactivar\s+recordatorio\b/g,
+  /\bcon\s+recordatorio\b/g,
+  /\bcon\s+alarma\b/g,
+  /\brecordatorio\b/g,
+  /\balarma\b/g,
+  /\bavisame\b/g,
+  /\bavisar\b/g,
+  /\brecuerdame\b/g,
+];
+
+function removeNormalizedMatches(original: string, patterns: RegExp[]) {
+  return patterns.reduce((current, pattern) => {
+    const normalized = normalize(current);
+    const matches = Array.from(normalized.matchAll(pattern));
+
+    return matches
+      .reverse()
+      .reduce((result, match) => {
+        const start = match.index ?? 0;
+        const end = start + match[0].length;
+        return `${result.slice(0, start)} ${result.slice(end)}`;
+      }, current);
+  }, original);
+}
+
 function removeCommandPhrases(original: string) {
   return cleanupTitle(
-    original
+    removeNormalizedMatches(original, REMINDER_TITLE_PATTERNS)
       .replace(/\bav[ií]same\s+(?:\d{1,3}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+(?:minutos?|horas?)\s+antes\s+de\s*/gi, ' ')
       .replace(/\brecu[eé]rdame\s+(?:\d{1,3}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+(?:minutos?|horas?)\s+antes\s+de\s*/gi, ' ')
       .replace(/\bav[ií]same\s+(?:\d{1,3}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+(?:minutos?|horas?)\s+antes\b/gi, ' ')
@@ -508,7 +544,7 @@ function removeCommandPhrases(original: string) {
 function createSummary(title: string, dateLabel: string | undefined, time: string | undefined, reminder: ReminderParseResult) {
   const pieces = [title || 'Título pendiente', dateLabel ?? 'fecha pendiente', time ?? 'hora pendiente'];
   const alarm = reminder.enabled ? 'alarma activada' : 'sin alarma';
-  const sound = reminder.enabled ? (reminder.silent ? 'sonido desactivado' : 'sonido activado') : 'sonido no aplica';
+  const sound = reminder.enabled ? (reminder.silent ? 'sonido silencioso' : 'sonido activado') : 'sonido no aplica';
   const minutes = reminder.enabled ? `${reminder.minutesBefore} min antes` : undefined;
 
   return `Detectado: ${pieces.join(' — ')} — ${alarm}, ${sound}${minutes ? `, ${minutes}` : ''}.`;
@@ -524,7 +560,7 @@ export function parseSpanishTaskCommand(input: string, options: ParseOptions = {
   const title = cleanupTitle(guidedFields?.tarea ?? '') || removeCommandPhrases(transcript);
   const date = parseDate(dateSource, referenceDate);
   const time = parseTime(timeSource, Boolean(guidedFields?.hora));
-  const reminder = parseReminder(normalized, guidedFields?.alarma);
+  const reminder = parseReminder(normalized, guidedFields?.alarma, guidedFields?.recordatorio);
 
   const confirmationReasons = [date.confirmationReason, time.confirmationReason].filter(Boolean) as string[];
   const missing: MissingTaskField[] = [];

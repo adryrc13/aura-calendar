@@ -113,7 +113,7 @@ export function AssistantPanel({ onCreateDraft }: AssistantPanelProps) {
                 {!lastParsed.draft.reminderEnabled
                   ? 'No aplica'
                   : lastParsed.draft.reminderSilent
-                    ? 'Desactivado'
+                    ? 'Silencioso'
                     : 'Activado'}
               </dd>
             </div>
