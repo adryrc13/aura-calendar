@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import type { RecurrenceType, Task, TaskDraft, TaskFormValues } from '../../domain/tasks/task';
 import { DEFAULT_TASK_DRAFT, RECURRENCE_TYPE_OPTIONS, TASK_COLORS, WEEKDAY_OPTIONS } from '../../domain/tasks/task';
 import { todayInputValue } from '../../shared/date';
@@ -312,21 +313,11 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
 
       <section className="aura-card overflow-hidden">
         <FormRow icon="repeat" label="Repetición" htmlFor="task-recurrence-type">
-          <div className="relative w-full">
-            <select
-              id="task-recurrence-type"
-              className="aura-input appearance-none pr-10 text-right"
-              value={draft.recurrenceType}
-              onChange={(event) => updateRecurrenceType(event.target.value as RecurrenceType)}
-            >
-              {RECURRENCE_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <Icon name="chevronDown" className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500 dark:text-slate-300" />
-          </div>
+          <RecurrenceTypeSelect
+            id="task-recurrence-type"
+            value={draft.recurrenceType}
+            onChange={updateRecurrenceType}
+          />
         </FormRow>
 
         {draft.recurrenceType !== 'none' ? (
@@ -435,6 +426,230 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
         </button>
       </div>
     </form>
+  );
+}
+
+interface RecurrenceTypeSelectProps {
+  id: string;
+  value: RecurrenceType;
+  onChange: (value: RecurrenceType) => void;
+}
+
+interface FloatingMenuPosition {
+  top: number;
+  left: number;
+  width: number;
+  maxHeight: number;
+}
+
+function RecurrenceTypeSelect({ id, value, onChange }: RecurrenceTypeSelectProps) {
+  const listboxId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const [menuPosition, setMenuPosition] = useState<FloatingMenuPosition | null>(null);
+  const selectedIndex = Math.max(0, RECURRENCE_TYPE_OPTIONS.findIndex((option) => option.value === value));
+  const selectedOption = RECURRENCE_TYPE_OPTIONS[selectedIndex] ?? RECURRENCE_TYPE_OPTIONS[0];
+
+  function updateMenuPosition() {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+
+    const rect = trigger.getBoundingClientRect();
+    const viewportPadding = 12;
+    const gap = 8;
+    const width = Math.min(Math.max(rect.width, 220), window.innerWidth - viewportPadding * 2);
+    const left = Math.min(
+      Math.max(viewportPadding, rect.right - width),
+      window.innerWidth - width - viewportPadding,
+    );
+    const availableBelow = window.innerHeight - rect.bottom - gap - viewportPadding;
+    const availableAbove = rect.top - gap - viewportPadding;
+    const openAbove = availableBelow < 250 && availableAbove > availableBelow;
+    const availableHeight = openAbove ? availableAbove : availableBelow;
+    const maxHeight = Math.min(320, Math.max(176, availableHeight));
+    const top = openAbove
+      ? Math.max(viewportPadding, rect.top - gap - maxHeight)
+      : Math.min(rect.bottom + gap, window.innerHeight - viewportPadding - maxHeight);
+
+    setMenuPosition({ top, left, width, maxHeight });
+  }
+
+  function closeMenu() {
+    setIsOpen(false);
+  }
+
+  function focusOption(index: number) {
+    const nextIndex = (index + RECURRENCE_TYPE_OPTIONS.length) % RECURRENCE_TYPE_OPTIONS.length;
+    setFocusedIndex(nextIndex);
+    optionRefs.current[nextIndex]?.focus();
+  }
+
+  function selectOption(recurrenceType: RecurrenceType, index: number) {
+    onChange(recurrenceType);
+    setFocusedIndex(index);
+    closeMenu();
+    window.requestAnimationFrame(() => triggerRef.current?.focus());
+  }
+
+  function handleTriggerClick() {
+    updateMenuPosition();
+    setFocusedIndex(selectedIndex);
+    setIsOpen((current) => !current);
+  }
+
+  function handleTriggerKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+
+    event.preventDefault();
+    updateMenuPosition();
+    setFocusedIndex(selectedIndex);
+    setIsOpen(true);
+  }
+
+  function handleMenuKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeMenu();
+      triggerRef.current?.focus();
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      focusOption(focusedIndex + 1);
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      focusOption(focusedIndex - 1);
+      return;
+    }
+
+    if (event.key === 'Home') {
+      event.preventDefault();
+      focusOption(0);
+      return;
+    }
+
+    if (event.key === 'End') {
+      event.preventDefault();
+      focusOption(RECURRENCE_TYPE_OPTIONS.length - 1);
+    }
+  }
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    updateMenuPosition();
+    const animationFrame = window.requestAnimationFrame(() => focusOption(selectedIndex));
+
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+
+      closeMenu();
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        closeMenu();
+        triggerRef.current?.focus();
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('scroll', updateMenuPosition, true);
+    window.addEventListener('resize', updateMenuPosition);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('scroll', updateMenuPosition, true);
+      window.removeEventListener('resize', updateMenuPosition);
+    };
+  }, [isOpen, selectedIndex]);
+
+  return (
+    <div ref={rootRef} className="w-full">
+      <button
+        id={id}
+        ref={triggerRef}
+        type="button"
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        aria-controls={listboxId}
+        className={`aura-input flex items-center justify-end gap-2 pr-3 text-right font-semibold hover:border-cyan-300 hover:shadow-[0_0_18px_rgba(34,211,238,0.18)] focus:border-cyan-300 focus:shadow-[0_0_22px_rgba(34,211,238,0.22)] ${
+          isOpen ? 'border-cyan-300 ring-4 ring-cyan-400/20' : ''
+        }`}
+        onClick={handleTriggerClick}
+        onKeyDown={handleTriggerKeyDown}
+      >
+        <span className="min-w-0 truncate">{selectedOption.label}</span>
+        <Icon
+          name="chevronDown"
+          className={`h-5 w-5 shrink-0 text-slate-500 transition dark:text-slate-300 ${
+            isOpen ? 'rotate-180 text-cyan-600 dark:text-cyan-200' : ''
+          }`}
+        />
+      </button>
+
+      {isOpen && menuPosition
+        ? createPortal(
+            <div
+              ref={menuRef}
+              id={listboxId}
+              role="listbox"
+              tabIndex={-1}
+              className="fixed z-[80] overflow-y-auto rounded-3xl border border-cyan-300/50 bg-white/95 p-2 text-sm shadow-[0_18px_60px_rgba(14,165,233,0.22)] backdrop-blur-xl dark:border-cyan-400/25 dark:bg-slate-950/95 dark:shadow-[0_18px_70px_rgba(34,211,238,0.16)]"
+              style={{
+                top: menuPosition.top,
+                left: menuPosition.left,
+                width: menuPosition.width,
+                maxHeight: menuPosition.maxHeight,
+              }}
+              onKeyDown={handleMenuKeyDown}
+            >
+              {RECURRENCE_TYPE_OPTIONS.map((option, index) => {
+                const isSelected = option.value === value;
+
+                return (
+                  <button
+                    key={option.value}
+                    ref={(element) => {
+                      optionRefs.current[index] = element;
+                    }}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left font-bold outline-none transition ${
+                      isSelected
+                        ? 'bg-cyan-500 text-white shadow-[0_0_18px_rgba(34,211,238,0.26)]'
+                        : 'text-slate-700 hover:bg-cyan-50 hover:text-cyan-800 focus:bg-cyan-50 focus:text-cyan-800 dark:text-slate-200 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-100 dark:focus:bg-cyan-500/10 dark:focus:text-cyan-100'
+                    }`}
+                    onClick={() => selectOption(option.value, index)}
+                    onFocus={() => setFocusedIndex(index)}
+                    onMouseEnter={() => setFocusedIndex(index)}
+                  >
+                    <span>{option.label}</span>
+                    {isSelected ? <Icon name="check" className="h-4 w-4 shrink-0" /> : null}
+                  </button>
+                );
+              })}
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
   );
 }
 
