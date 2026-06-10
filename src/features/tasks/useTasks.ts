@@ -3,8 +3,10 @@ import { normalizeTaskAttachments } from '../../domain/tasks/attachment';
 import type { Task, TaskDraft } from '../../domain/tasks/task';
 import { DEFAULT_TASK_DRAFT, TASK_COLORS } from '../../domain/tasks/task';
 import { buildRecurrenceRule, isRecurringTask, isVirtualOccurrence } from '../../domain/tasks/recurrence';
-import { dexieTaskRepository } from '../../infrastructure/db/dexieTaskRepository';
+import { getActiveTaskRepository } from '../../infrastructure/tasks/taskRepositoryProvider';
 import { createId } from '../../shared/id';
+
+const taskRepository = getActiveTaskRepository();
 
 function normalizeDraft(draft: TaskDraft): TaskDraft {
   const color = TASK_COLORS.find((item) => item.value === draft.color) ?? TASK_COLORS[0];
@@ -51,7 +53,7 @@ export function useTasks() {
 
   const reload = useCallback(async () => {
     setIsLoading(true);
-    const allTasks = await dexieTaskRepository.getAll();
+    const allTasks = await taskRepository.getAll();
     setTasks(allTasks);
     setIsLoading(false);
   }, []);
@@ -73,7 +75,7 @@ export function useTasks() {
         updatedAt: now,
       };
 
-      await dexieTaskRepository.upsert(task);
+      await taskRepository.upsert(task);
       await reload();
       return task;
     },
@@ -99,7 +101,7 @@ export function useTasks() {
         updatedAt: now,
       };
 
-      await dexieTaskRepository.upsert(updatedTask);
+      await taskRepository.upsert(updatedTask);
       await reload();
       return updatedTask;
     },
@@ -108,7 +110,7 @@ export function useTasks() {
 
   const deleteTask = useCallback(
     async (id: string) => {
-      await dexieTaskRepository.delete(id);
+      await taskRepository.delete(id);
       await reload();
     },
     [reload],
@@ -121,7 +123,7 @@ export function useTasks() {
 
         if (!series) return;
 
-        await dexieTaskRepository.upsert({
+        await taskRepository.upsert({
           ...series,
           modifiedOccurrences: {
             ...(series.modifiedOccurrences ?? {}),
@@ -136,7 +138,7 @@ export function useTasks() {
         return;
       }
 
-      await dexieTaskRepository.upsert({
+      await taskRepository.upsert({
         ...task,
         completed: !task.completed,
         updatedAt: new Date().toISOString(),
@@ -150,7 +152,7 @@ export function useTasks() {
     async (task: Task) => {
       if (!isVirtualOccurrence(task) || !task.sourceTaskId || !task.occurrenceDate) {
         if (isRecurringTask(task)) {
-          await dexieTaskRepository.upsert({
+          await taskRepository.upsert({
             ...task,
             exceptionDates: [...new Set([...(task.exceptionDates ?? []), task.date])].sort(),
             updatedAt: new Date().toISOString(),
@@ -159,7 +161,7 @@ export function useTasks() {
           return;
         }
 
-        await dexieTaskRepository.delete(task.id);
+        await taskRepository.delete(task.id);
         await reload();
         return;
       }
@@ -168,7 +170,7 @@ export function useTasks() {
 
       if (!series) return;
 
-      await dexieTaskRepository.upsert({
+      await taskRepository.upsert({
         ...series,
         exceptionDates: [...new Set([...(series.exceptionDates ?? []), task.occurrenceDate])].sort(),
         updatedAt: new Date().toISOString(),

@@ -7,6 +7,7 @@ import {
   showBrowserNotification,
   type NotificationPermissionState,
 } from '../../infrastructure/notifications/browserNotifications';
+import { AccountSyncPanel } from './AccountSyncPanel';
 
 export function SettingsPanel() {
   const { theme, toggleTheme } = useTheme();
@@ -36,9 +37,11 @@ export function SettingsPanel() {
         <p className="aura-label">Ajustes</p>
         <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">Preferencias locales</h2>
         <p className="aura-muted mt-3 text-sm leading-relaxed">
-          Todo queda en este dispositivo durante la Fase 1. Sin login, sin nube y sin calendarios externos.
+          Todo sigue funcionando en este dispositivo. Supabase queda disponible de forma opcional para preparar usuarios y sincronización.
         </p>
       </div>
+
+      <AccountSyncPanel />
 
       <div className="aura-card p-5">
         <div className="flex items-center justify-between gap-4">
@@ -91,7 +94,7 @@ export function SettingsPanel() {
         <p className="aura-label">Futuras fases</p>
         <div className="aura-muted mt-3 grid gap-2 text-sm">
           <p>• Repeticiones avanzadas y adjuntos.</p>
-          <p>• Supabase Auth, Database y Storage.</p>
+          <p>• Supabase Auth, Database y Storage remoto de adjuntos.</p>
           <p>• Calendarios compartidos.</p>
           <p>• Capacitor, APK/AAB y notificaciones nativas Android.</p>
         </div>

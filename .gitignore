@@ -2,5 +2,7 @@ node_modules
 dist
 *.tsbuildinfo
 .env
-.env.*
+.env.local
+.env.*.local
 !.env.example
+!.env.local.example
