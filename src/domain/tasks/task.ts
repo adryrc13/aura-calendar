@@ -1,3 +1,5 @@
+import type { TaskAttachment } from './attachment';
+
 export type TaskColor = 'violet' | 'cyan' | 'emerald' | 'amber' | 'rose' | 'slate';
 
 export type RecurrenceType =
@@ -49,6 +51,7 @@ export interface Task {
   parentTaskId?: string;
   exceptionDates: string[];
   modifiedOccurrences: Record<string, ModifiedOccurrence>;
+  attachments: TaskAttachment[];
   occurrenceDate?: string;
   sourceTaskId?: string;
   isVirtualOccurrence?: boolean;
@@ -111,6 +114,7 @@ export const DEFAULT_TASK_DRAFT: Omit<TaskDraft, 'date' | 'time'> = {
   parentTaskId: undefined,
   exceptionDates: [],
   modifiedOccurrences: {},
+  attachments: [],
   occurrenceDate: undefined,
   sourceTaskId: undefined,
   isVirtualOccurrence: undefined,

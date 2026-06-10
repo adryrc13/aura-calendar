@@ -1,6 +1,7 @@
 import type { SVGProps } from 'react';
 
 export type IconName =
+  | 'attachment'
   | 'bell'
   | 'calendar'
   | 'calendarDots'
@@ -10,11 +11,16 @@ export type IconName =
   | 'chevronRight'
   | 'clock'
   | 'close'
+  | 'download'
+  | 'file'
   | 'flag'
   | 'hash'
+  | 'image'
+  | 'link'
   | 'list'
   | 'mic'
   | 'moon'
+  | 'note'
   | 'palette'
   | 'plus'
   | 'repeat'
@@ -22,6 +28,7 @@ export type IconName =
   | 'sparkles'
   | 'sun'
   | 'timer'
+  | 'trash'
   | 'volumeOff';
 
 interface IconProps extends SVGProps<SVGSVGElement> {
@@ -41,6 +48,12 @@ export function Icon({ name, ...props }: IconProps) {
   };
 
   switch (name) {
+    case 'attachment':
+      return (
+        <svg {...common}>
+          <path d="m21 11.5-8.5 8.4a5.2 5.2 0 0 1-7.4-7.4l9-9a3.5 3.5 0 0 1 5 5l-9.2 9.1a1.8 1.8 0 0 1-2.5-2.5l8.2-8.1" />
+        </svg>
+      );
     case 'bell':
       return (
         <svg {...common}>
@@ -100,6 +113,21 @@ export function Icon({ name, ...props }: IconProps) {
           <path d="M6 6l12 12M18 6 6 18" />
         </svg>
       );
+    case 'download':
+      return (
+        <svg {...common}>
+          <path d="M12 4v11" />
+          <path d="m7 10 5 5 5-5" />
+          <path d="M5 20h14" />
+        </svg>
+      );
+    case 'file':
+      return (
+        <svg {...common}>
+          <path d="M7.5 3.5H14l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20V5a1.5 1.5 0 0 1 1.5-1.5Z" />
+          <path d="M14 3.5V8h4" />
+        </svg>
+      );
     case 'flag':
       return (
         <svg {...common}>
@@ -111,6 +139,22 @@ export function Icon({ name, ...props }: IconProps) {
       return (
         <svg {...common}>
           <path d="M9 4 7 20M17 4l-2 16M4 9h16M3 15h16" />
+        </svg>
+      );
+    case 'image':
+      return (
+        <svg {...common}>
+          <rect x="4" y="5" width="16" height="14" rx="2.5" />
+          <path d="m7 16 3.2-3.2a1.4 1.4 0 0 1 2 0L15 15.5l1-1a1.4 1.4 0 0 1 2 0l2 2" />
+          <path d="M8.5 9.5h.01" />
+        </svg>
+      );
+    case 'link':
+      return (
+        <svg {...common}>
+          <path d="M9.5 14.5 14.5 9.5" />
+          <path d="M13.4 16.6 12 18a4 4 0 0 1-5.7-5.7l2-2A4 4 0 0 1 14 10" />
+          <path d="M10.6 7.4 12 6a4 4 0 0 1 5.7 5.7l-2 2A4 4 0 0 1 10 14" />
         </svg>
       );
     case 'list':
@@ -131,6 +175,14 @@ export function Icon({ name, ...props }: IconProps) {
       return (
         <svg {...common}>
           <path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 7 7 0 1 0 20 15.5Z" />
+        </svg>
+      );
+    case 'note':
+      return (
+        <svg {...common}>
+          <path d="M7 4h10a2 2 0 0 1 2 2v9.5L14.5 20H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
+          <path d="M14 20v-4a1 1 0 0 1 1-1h4" />
+          <path d="M8.5 8.5h7M8.5 12h5" />
         </svg>
       );
     case 'palette':
@@ -181,6 +233,15 @@ export function Icon({ name, ...props }: IconProps) {
         <svg {...common}>
           <path d="M10 2h4M12 14l2.5-2.5" />
           <circle cx="12" cy="14" r="7" />
+        </svg>
+      );
+    case 'trash':
+      return (
+        <svg {...common}>
+          <path d="M4 7h16" />
+          <path d="M10 11v6M14 11v6" />
+          <path d="M6.5 7 7.4 20a1.7 1.7 0 0 0 1.7 1.5h5.8a1.7 1.7 0 0 0 1.7-1.5L17.5 7" />
+          <path d="M9 7V4.8A1.8 1.8 0 0 1 10.8 3h2.4A1.8 1.8 0 0 1 15 4.8V7" />
         </svg>
       );
     case 'volumeOff':

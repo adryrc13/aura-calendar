@@ -3,6 +3,7 @@ import type { RecurrenceType, Task, TaskDraft, TaskFormValues } from '../../doma
 import { DEFAULT_TASK_DRAFT, RECURRENCE_TYPE_OPTIONS, TASK_COLORS, WEEKDAY_OPTIONS } from '../../domain/tasks/task';
 import { todayInputValue } from '../../shared/date';
 import { Icon, type IconName } from '../../shared/icons';
+import { AttachmentEditor } from './TaskAttachments';
 
 interface TaskFormProps {
   task?: Task;
@@ -42,6 +43,7 @@ function buildInitialDraft(task?: Task, initialValues?: TaskFormValues): TaskDra
     parentTaskId: initialValues?.parentTaskId,
     exceptionDates: initialValues?.exceptionDates ?? DEFAULT_TASK_DRAFT.exceptionDates,
     modifiedOccurrences: initialValues?.modifiedOccurrences ?? DEFAULT_TASK_DRAFT.modifiedOccurrences,
+    attachments: initialValues?.attachments ?? DEFAULT_TASK_DRAFT.attachments,
   };
 }
 
@@ -302,6 +304,11 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
           />
         </FormRow>
       </section>
+
+      <AttachmentEditor
+        attachments={draft.attachments ?? []}
+        onChange={(attachments) => setDraft((current) => ({ ...current, attachments }))}
+      />
 
       <section className="aura-card overflow-hidden">
         <FormRow icon="repeat" label="Repetición" htmlFor="task-recurrence-type">

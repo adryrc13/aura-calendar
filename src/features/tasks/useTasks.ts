@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { normalizeTaskAttachments } from '../../domain/tasks/attachment';
 import type { Task, TaskDraft } from '../../domain/tasks/task';
 import { DEFAULT_TASK_DRAFT, TASK_COLORS } from '../../domain/tasks/task';
 import { buildRecurrenceRule, isRecurringTask, isVirtualOccurrence } from '../../domain/tasks/recurrence';
@@ -31,6 +32,7 @@ function normalizeDraft(draft: TaskDraft): TaskDraft {
     recurrenceCount: draft.recurrenceCount ? Math.max(1, Number(draft.recurrenceCount)) : undefined,
     exceptionDates: draft.exceptionDates ?? [],
     modifiedOccurrences: draft.modifiedOccurrences ?? {},
+    attachments: draft.attachments ?? [],
     parentTaskId: draft.parentTaskId,
     occurrenceDate: undefined,
     sourceTaskId: undefined,
@@ -61,9 +63,12 @@ export function useTasks() {
   const createTask = useCallback(
     async (draft: TaskDraft) => {
       const now = new Date().toISOString();
+      const id = createId();
+      const normalizedDraft = normalizeDraft(draft);
       const task: Task = {
-        ...normalizeDraft(draft),
-        id: createId(),
+        ...normalizedDraft,
+        id,
+        attachments: normalizeTaskAttachments(normalizedDraft.attachments, id, now),
         createdAt: now,
         updatedAt: now,
       };
@@ -83,12 +88,15 @@ export function useTasks() {
         throw new Error('No se encontró la serie recurrente para actualizar.');
       }
 
+      const now = new Date().toISOString();
+      const normalizedDraft = normalizeDraft(draft);
       const updatedTask: Task = {
         ...taskToUpdate,
-        ...normalizeDraft(draft),
+        ...normalizedDraft,
         id: taskToUpdate.id,
+        attachments: normalizeTaskAttachments(normalizedDraft.attachments, taskToUpdate.id, now),
         createdAt: taskToUpdate.createdAt,
-        updatedAt: new Date().toISOString(),
+        updatedAt: now,
       };
 
       await dexieTaskRepository.upsert(updatedTask);

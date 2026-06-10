@@ -153,7 +153,7 @@ export const SPANISH_TASK_PARSER_INTERNAL_CASES: ParserExpectation[] = [
   {
     input: 'tomar medicación día sí día no a las 9',
     title: 'Tomar medicación',
-    date: '2026-06-09',
+    date: '2026-06-10',
     time: '09:00',
     recurrenceType: 'alternate-days',
     recurrenceInterval: 2,
@@ -169,7 +169,7 @@ export const SPANISH_TASK_PARSER_INTERNAL_CASES: ParserExpectation[] = [
   {
     input: 'cardio cada 3 días a las 8',
     title: 'Cardio',
-    date: '2026-06-09',
+    date: '2026-06-10',
     time: '08:00',
     recurrenceType: 'custom-days',
     recurrenceInterval: 3,

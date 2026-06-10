@@ -2,6 +2,7 @@ import type { Task } from '../../domain/tasks/task';
 import { TASK_COLORS } from '../../domain/tasks/task';
 import { recurrenceLabel } from '../../domain/tasks/recurrence';
 import { Icon } from '../../shared/icons';
+import { AttachmentList } from './TaskAttachments';
 
 interface TaskCardProps {
   task: Task;
@@ -70,6 +71,8 @@ export function TaskCard({ task, onEdit, onDelete, onToggleCompleted }: TaskCard
               <span className="rounded-full bg-slate-100/80 px-3 py-1 dark:bg-slate-800/70">Sin alarma</span>
             )}
           </div>
+
+          <AttachmentList attachments={task.attachments ?? []} compact />
 
           <div className="mt-4 flex gap-2">
             <button
