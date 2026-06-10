@@ -1,7 +1,8 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import type { RecurrenceType, Task, TaskDraft, TaskFormValues } from '../../domain/tasks/task';
 import { DEFAULT_TASK_DRAFT, RECURRENCE_TYPE_OPTIONS, TASK_COLORS, WEEKDAY_OPTIONS } from '../../domain/tasks/task';
 import { todayInputValue } from '../../shared/date';
+import { Icon, type IconName } from '../../shared/icons';
 
 interface TaskFormProps {
   task?: Task;
@@ -154,209 +155,199 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {assistantNotice ? (
-        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
-          {assistantNotice}
+      {assistantNotice ? <div className="aura-alert">{assistantNotice}</div> : null}
+
+      <section className="aura-card overflow-hidden">
+        <div className="space-y-4 p-4">
+          <div>
+            <label className="aura-label" htmlFor="task-title">
+              Título
+            </label>
+            <input
+              id="task-title"
+              className="aura-input mt-2"
+              value={draft.title}
+              onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
+              placeholder="Ej: tomar medicación"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="aura-label" htmlFor="task-description">
+              Descripción
+            </label>
+            <textarea
+              id="task-description"
+              className="aura-input mt-2 min-h-24 resize-none"
+              value={draft.description}
+              onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
+              placeholder="Notas, detalles o contexto"
+            />
+          </div>
         </div>
-      ) : null}
+      </section>
 
-      <div>
-        <label className="aura-label" htmlFor="task-title">
-          Título
-        </label>
-        <input
-          id="task-title"
-          className="aura-input mt-2"
-          value={draft.title}
-          onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
-          placeholder="Ej: tomar medicación"
-          required
-        />
-      </div>
-
-      <div>
-        <label className="aura-label" htmlFor="task-description">
-          Descripción
-        </label>
-        <textarea
-          id="task-description"
-          className="aura-input mt-2 min-h-24 resize-none"
-          value={draft.description}
-          onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
-          placeholder="Notas, detalles o contexto"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="aura-label" htmlFor="task-date">
-            Fecha
-          </label>
+      <section className="aura-card overflow-hidden">
+        <FormRow icon="calendar" label="Fecha" htmlFor="task-date">
           <input
             id="task-date"
-            className="aura-input mt-2"
+            className="aura-input text-right"
             type="date"
             value={draft.date}
             onChange={(event) => setDraft((current) => ({ ...current, date: event.target.value }))}
             required
           />
-        </div>
-        <div>
-          <label className="aura-label" htmlFor="task-time">
-            Hora
-          </label>
-          <input
-            id="task-time"
-            className="aura-input mt-2"
-            type="time"
-            value={draft.time}
-            onChange={(event) => setDraft((current) => ({ ...current, time: event.target.value }))}
-            required
-          />
-          {suggestedTimes?.length ? (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {suggestedTimes.map((time) => (
-                <button
-                  key={time}
-                  type="button"
-                  onClick={() => setDraft((current) => ({ ...current, time }))}
-                  className="rounded-xl bg-amber-100 px-3 py-2 text-xs font-black text-amber-900 transition hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-100"
-                >
-                  Usar {time}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </div>
+        </FormRow>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="aura-label" htmlFor="task-end-time">
-            Fin opcional
-          </label>
+        <FormRow icon="clock" label="Hora" htmlFor="task-time">
+          <div className="w-full">
+            <input
+              id="task-time"
+              className="aura-input text-right"
+              type="time"
+              value={draft.time}
+              onChange={(event) => setDraft((current) => ({ ...current, time: event.target.value }))}
+              required
+            />
+            {suggestedTimes?.length ? (
+              <div className="mt-2 flex flex-wrap justify-end gap-2">
+                {suggestedTimes.map((time) => (
+                  <button
+                    key={time}
+                    type="button"
+                    onClick={() => setDraft((current) => ({ ...current, time }))}
+                    className="rounded-xl bg-amber-100 px-3 py-2 text-xs font-black text-amber-900 transition hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-100"
+                  >
+                    Usar {time}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </FormRow>
+
+        <FormRow icon="timer" label="Fin opcional" htmlFor="task-end-time">
           <input
             id="task-end-time"
-            className="aura-input mt-2"
+            className="aura-input text-right"
             type="time"
             value={draft.endTime ?? ''}
             onChange={(event) => setDraft((current) => ({ ...current, endTime: event.target.value || undefined }))}
           />
-        </div>
-        <div>
-          <label className="aura-label" htmlFor="task-color">
-            Color
-          </label>
-          <select
-            id="task-color"
-            className="aura-input mt-2"
-            value={draft.color}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                color: event.target.value as TaskDraft['color'],
-                textColor:
-                  TASK_COLORS.find((color) => color.value === event.target.value)?.textColor ?? DEFAULT_TASK_DRAFT.textColor,
-              }))
-            }
-          >
-            {TASK_COLORS.map((color) => (
-              <option key={color.value} value={color.value}>
-                {color.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+        </FormRow>
 
-      <section className="rounded-3xl bg-slate-50 p-4 dark:bg-slate-950">
-        <label className="flex items-center justify-between gap-4 text-sm font-bold text-slate-800 dark:text-slate-100">
-          Activar recordatorio
+        <FormRow icon="palette" label="Color">
+          <div className="flex flex-wrap justify-end gap-3">
+            {TASK_COLORS.map((color) => {
+              const isSelected = draft.color === color.value;
+
+              return (
+                <button
+                  key={color.value}
+                  type="button"
+                  onClick={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      color: color.value,
+                      textColor: color.textColor,
+                    }))
+                  }
+                  className={`h-9 w-9 rounded-full border-2 transition ${
+                    isSelected
+                      ? 'border-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.55)] ring-4 ring-cyan-400/20'
+                      : 'border-white/70 hover:scale-105 dark:border-slate-700'
+                  }`}
+                  style={{ background: color.swatch }}
+                  aria-label={`Color ${color.label}`}
+                />
+              );
+            })}
+          </div>
+        </FormRow>
+      </section>
+
+      <section className="aura-card overflow-hidden">
+        <FormRow icon="bell" label="Recordatorio" htmlFor="task-reminder-enabled">
           <input
+            id="task-reminder-enabled"
             type="checkbox"
             checked={draft.reminderEnabled}
             onChange={(event) => setDraft((current) => ({ ...current, reminderEnabled: event.target.checked }))}
-            className="h-5 w-5 accent-violet-600"
+            className="aura-switch"
           />
-        </label>
+        </FormRow>
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div>
-            <label className="aura-label" htmlFor="task-reminder-minutes">
-              Minutos antes
-            </label>
-            <input
-              id="task-reminder-minutes"
-              className="aura-input mt-2"
-              type="number"
-              min={0}
-              value={reminderMinutesInput}
-              onChange={(event) => updateReminderMinutes(event.target.value)}
-              onBlur={validateReminderMinutes}
-              disabled={!draft.reminderEnabled}
-            />
-          </div>
-          <label className="mt-7 flex items-center justify-between gap-4 rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-800 dark:bg-slate-900 dark:text-slate-100">
-            Sin sonido
-            <input
-              type="checkbox"
-              checked={draft.reminderSilent}
-              onChange={(event) => setDraft((current) => ({ ...current, reminderSilent: event.target.checked }))}
-              className="h-5 w-5 accent-violet-600"
-              disabled={!draft.reminderEnabled}
-            />
-          </label>
-        </div>
+        <FormRow icon="timer" label="Minutos antes" htmlFor="task-reminder-minutes">
+          <input
+            id="task-reminder-minutes"
+            className="aura-input text-right"
+            type="number"
+            min={0}
+            value={reminderMinutesInput}
+            onChange={(event) => updateReminderMinutes(event.target.value)}
+            onBlur={validateReminderMinutes}
+            disabled={!draft.reminderEnabled}
+          />
+        </FormRow>
+
+        <FormRow icon="volumeOff" label="Sin sonido" htmlFor="task-reminder-silent">
+          <input
+            id="task-reminder-silent"
+            type="checkbox"
+            checked={draft.reminderSilent}
+            onChange={(event) => setDraft((current) => ({ ...current, reminderSilent: event.target.checked }))}
+            className="aura-switch"
+            disabled={!draft.reminderEnabled}
+          />
+        </FormRow>
       </section>
 
-      <section className="rounded-3xl bg-slate-50 p-4 dark:bg-slate-950">
-        <div>
-          <label className="aura-label" htmlFor="task-recurrence-type">
-            Repetición
-          </label>
-          <select
-            id="task-recurrence-type"
-            className="aura-input mt-2"
-            value={draft.recurrenceType}
-            onChange={(event) => updateRecurrenceType(event.target.value as RecurrenceType)}
-          >
-            {RECURRENCE_TYPE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+      <section className="aura-card overflow-hidden">
+        <FormRow icon="repeat" label="Repetición" htmlFor="task-recurrence-type">
+          <div className="relative w-full">
+            <select
+              id="task-recurrence-type"
+              className="aura-input appearance-none pr-10 text-right"
+              value={draft.recurrenceType}
+              onChange={(event) => updateRecurrenceType(event.target.value as RecurrenceType)}
+            >
+              {RECURRENCE_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <Icon name="chevronDown" className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500 dark:text-slate-300" />
+          </div>
+        </FormRow>
 
         {draft.recurrenceType !== 'none' ? (
-          <div className="mt-4 space-y-4">
+          <>
             {(draft.recurrenceType === 'custom-days' ||
               draft.recurrenceType === 'custom-weeks' ||
               draft.recurrenceType === 'weekly' ||
               draft.recurrenceType === 'monthly' ||
               draft.recurrenceType === 'yearly') ? (
-              <div>
-                <label className="aura-label" htmlFor="task-recurrence-interval">
-                  Intervalo
-                </label>
+              <FormRow icon="calendar" label="Intervalo" htmlFor="task-recurrence-interval">
                 <input
                   id="task-recurrence-interval"
-                  className="aura-input mt-2"
+                  className="aura-input text-right"
                   type="number"
                   min={1}
                   value={recurrenceIntervalInput}
                   onChange={(event) => updateRecurrenceInterval(event.target.value)}
                   onBlur={validateRecurrenceInterval}
                 />
-              </div>
+              </FormRow>
             ) : null}
 
             {(draft.recurrenceType === 'weekly' ||
               draft.recurrenceType === 'custom-weeks' ||
               draft.recurrenceType === 'weekdays') ? (
-              <div>
+              <div className="border-b border-slate-200/50 p-4 last:border-b-0 dark:border-slate-800/70">
                 <p className="aura-label">Días de la semana</p>
-                <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {WEEKDAY_OPTIONS.map((day) => {
                     const isSelected = draft.recurrenceDaysOfWeek.includes(day.value);
 
@@ -365,10 +356,10 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
                         key={day.value}
                         type="button"
                         onClick={() => toggleWeekday(day.value)}
-                        className={`rounded-2xl px-3 py-2 text-sm font-black transition ${
+                        className={`rounded-2xl border px-3 py-2 text-sm font-black transition ${
                           isSelected
-                            ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20'
-                            : 'bg-white text-slate-700 hover:bg-violet-50 dark:bg-slate-900 dark:text-slate-200'
+                            ? 'border-cyan-300 bg-cyan-500 text-white shadow-lg shadow-cyan-500/20'
+                            : 'border-cyan-500/10 bg-white/60 text-slate-700 hover:border-cyan-300 hover:bg-cyan-50 dark:bg-slate-950/40 dark:text-slate-200'
                         }`}
                       >
                         {day.label}
@@ -376,14 +367,14 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
                     );
                   })}
                 </div>
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                <p className="aura-muted mt-2 text-xs">
                   Si no elegís días, se usa el día inicial de la tarea.
                 </p>
               </div>
             ) : null}
 
             {(draft.recurrenceType === 'monthly' || draft.recurrenceType === 'month-days') ? (
-              <div>
+              <div className="border-b border-slate-200/50 p-4 last:border-b-0 dark:border-slate-800/70">
                 <label className="aura-label" htmlFor="task-recurrence-month-days">
                   Días del mes
                 </label>
@@ -394,65 +385,68 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
                   onChange={(event) => updateMonthDays(event.target.value)}
                   placeholder="1, 15"
                 />
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                  Separá con comas. Si queda vacío, se usa el día inicial.
-                </p>
+                <p className="aura-muted mt-2 text-xs">Separá con comas. Si queda vacío, se usa el día inicial.</p>
               </div>
             ) : null}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="aura-label" htmlFor="task-recurrence-end-date">
-                  Repetir hasta
-                </label>
-                <input
-                  id="task-recurrence-end-date"
-                  className="aura-input mt-2"
-                  type="date"
-                  value={draft.recurrenceEndDate ?? ''}
-                  onChange={(event) => setDraft((current) => ({ ...current, recurrenceEndDate: event.target.value || undefined }))}
-                />
-              </div>
-              <div>
-                <label className="aura-label" htmlFor="task-recurrence-count">
-                  Máx. veces
-                </label>
-                <input
-                  id="task-recurrence-count"
-                  className="aura-input mt-2"
-                  type="number"
-                  min={1}
-                  value={draft.recurrenceCount ?? ''}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      recurrenceCount: event.target.value ? Number(event.target.value) : undefined,
-                    }))
-                  }
-                  placeholder="Opcional"
-                />
-              </div>
-            </div>
-          </div>
+            <FormRow icon="flag" label="Repetir hasta" htmlFor="task-recurrence-end-date">
+              <input
+                id="task-recurrence-end-date"
+                className="aura-input text-right"
+                type="date"
+                value={draft.recurrenceEndDate ?? ''}
+                onChange={(event) => setDraft((current) => ({ ...current, recurrenceEndDate: event.target.value || undefined }))}
+              />
+            </FormRow>
+
+            <FormRow icon="hash" label="Máx. veces" htmlFor="task-recurrence-count">
+              <input
+                id="task-recurrence-count"
+                className="aura-input text-right"
+                type="number"
+                min={1}
+                value={draft.recurrenceCount ?? ''}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    recurrenceCount: event.target.value ? Number(event.target.value) : undefined,
+                  }))
+                }
+                placeholder="Opcional"
+              />
+            </FormRow>
+          </>
         ) : null}
       </section>
 
-      <div className="flex gap-3 pt-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="flex-1 rounded-2xl bg-slate-100 px-4 py-3 font-black text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-        >
+      <div className="flex justify-start gap-3 pt-2">
+        <button type="button" onClick={onCancel} className="aura-secondary min-w-32">
           Cancelar
         </button>
-        <button
-          type="submit"
-          disabled={isSaving || !draft.title.trim()}
-          className="flex-1 rounded-2xl bg-violet-600 px-4 py-3 font-black text-white shadow-lg shadow-violet-600/30 transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isSaving ? 'Guardando…' : task ? 'Guardar' : 'Crear'}
+        <button type="submit" disabled={isSaving || !draft.title.trim()} className="aura-primary min-w-40">
+          {isSaving ? 'Guardando…' : task ? 'Guardar' : 'Crear tarea'}
         </button>
       </div>
     </form>
+  );
+}
+
+function FormRow({ icon, label, htmlFor, children }: { icon: IconName; label: string; htmlFor?: string; children: ReactNode }) {
+  const labelClassName = 'min-w-0 flex-1 text-base font-semibold text-slate-900 dark:text-slate-100';
+
+  return (
+    <div className="aura-form-row">
+      <span className="aura-row-icon">
+        <Icon name={icon} className="h-6 w-6" />
+      </span>
+      {htmlFor ? (
+        <label className={labelClassName} htmlFor={htmlFor}>
+          {label}
+        </label>
+      ) : (
+        <span className={labelClassName}>{label}</span>
+      )}
+      <div className="flex min-w-[9rem] flex-1 justify-end">{children}</div>
+    </div>
   );
 }

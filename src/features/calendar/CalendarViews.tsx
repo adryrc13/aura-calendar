@@ -1,5 +1,6 @@
 import type { Task } from '../../domain/tasks/task';
 import { addDays, addMonths, formatShortDate, parseInputDate, todayInputValue, ES_MONTH_FORMATTER } from '../../shared/date';
+import { Icon } from '../../shared/icons';
 import { TaskCard } from '../tasks/TaskCard';
 import { buildMonthGrid, tasksForDate, upcomingTasks } from './calendarUtils';
 
@@ -46,7 +47,7 @@ export function MonthView({
       />
 
       <div className="aura-card p-3">
-        <div className="grid grid-cols-7 px-1 pb-2 text-center text-[11px] font-black uppercase tracking-wide text-slate-400">
+        <div className="grid grid-cols-7 px-1 pb-2 text-center text-[11px] font-black uppercase tracking-wide text-cyan-700/70 dark:text-cyan-200/70">
           {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day) => (
             <span key={day}>{day}</span>
           ))}
@@ -61,18 +62,18 @@ export function MonthView({
                 type="button"
                 onClick={() => onSelectDate(day.value)}
                 onDoubleClick={() => onCreateTask(day.value)}
-                className={`min-h-20 rounded-2xl p-2 text-left transition ${
+                className={`min-h-20 rounded-2xl border p-2 text-left transition ${
                   isSelected
-                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/25'
+                    ? 'border-cyan-300 bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25'
                     : day.isCurrentMonth
-                      ? 'bg-white text-slate-900 hover:bg-violet-50 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-violet-500/10'
-                      : 'bg-slate-100/80 text-slate-400 dark:bg-slate-950/80 dark:text-slate-600'
+                      ? 'border-cyan-500/10 bg-white/60 text-slate-900 hover:border-cyan-300 hover:bg-cyan-50/80 dark:bg-slate-950/35 dark:text-slate-100 dark:hover:bg-cyan-500/10'
+                      : 'border-transparent bg-slate-100/60 text-slate-400 dark:bg-slate-950/45 dark:text-slate-600'
                 }`}
                 aria-label={`Ver día ${day.value}`}
               >
                 <span
                   className={`inline-grid h-7 w-7 place-items-center rounded-full text-xs font-black ${
-                    day.isToday && !isSelected ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-200' : ''
+                    day.isToday && !isSelected ? 'bg-cyan-100 text-cyan-700 shadow-[0_0_16px_rgba(34,211,238,0.2)] dark:bg-cyan-500/20 dark:text-cyan-200' : ''
                   }`}
                 >
                   {day.date.getDate()}
@@ -144,10 +145,10 @@ export function DayView({
                 key={value}
                 type="button"
                 onClick={() => onSelectDate(value)}
-                className={`rounded-3xl px-3 py-4 text-center transition ${
+                className={`rounded-3xl border px-3 py-4 text-center transition ${
                   isSelected
-                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/25'
-                    : 'bg-slate-100 text-slate-700 hover:bg-violet-50 dark:bg-slate-800 dark:text-slate-200'
+                    ? 'border-cyan-300 bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25'
+                    : 'border-cyan-500/10 bg-white/60 text-slate-700 hover:border-cyan-300 hover:bg-cyan-50/80 dark:bg-slate-950/35 dark:text-slate-200 dark:hover:bg-cyan-500/10'
                 }`}
               >
                 <span className="block text-xs font-bold uppercase tracking-wide">
@@ -191,7 +192,7 @@ export function AgendaView({ tasks, onCreateTask, onEditTask, onDeleteTask, onTo
       <div className="aura-card p-5">
         <p className="aura-label">Agenda</p>
         <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">Próximas tareas</h2>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+        <p className="aura-muted mt-2 text-sm">
           Acá ves lo que viene desde hoy en adelante, ordenado por fecha y hora.
         </p>
       </div>
@@ -200,7 +201,7 @@ export function AgendaView({ tasks, onCreateTask, onEditTask, onDeleteTask, onTo
         <div className="space-y-3">
           {agendaTasks.map((task) => (
             <div key={task.id}>
-              <p className="mb-2 ml-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+              <p className="mb-2 ml-2 text-xs font-black uppercase tracking-[0.18em] text-cyan-700/70 dark:text-cyan-200/70">
                 {formatShortDate(task.date)}
               </p>
               <TaskCard task={task} onEdit={onEditTask} onDelete={onDeleteTask} onToggleCompleted={onToggleTask} />
@@ -235,7 +236,7 @@ function TaskList({ title, emptyText, tasks, onCreate, onEditTask, onDeleteTask,
         <button
           type="button"
           onClick={onCreate}
-          className="rounded-2xl bg-violet-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-violet-600/25"
+          className="aura-primary text-sm"
         >
           Crear
         </button>
@@ -265,12 +266,14 @@ interface EmptyStateProps {
 function EmptyState({ text, onCreate }: EmptyStateProps) {
   return (
     <div className="aura-card p-6 text-center">
-      <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-violet-100 text-3xl dark:bg-violet-500/10">✦</div>
-      <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">{text}</p>
+      <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-cyan-50 text-cyan-600 shadow-[0_0_24px_rgba(34,211,238,0.16)] dark:bg-cyan-500/10 dark:text-cyan-200">
+        <Icon name="sparkles" className="h-8 w-8" />
+      </div>
+      <p className="aura-muted mt-4 text-sm">{text}</p>
       <button
         type="button"
         onClick={onCreate}
-        className="mt-4 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950"
+        className="aura-primary mt-4 text-sm"
       >
         Crear tarea
       </button>
@@ -292,10 +295,10 @@ function CalendarToolbar({ title, onPrevious, onNext, onToday }: CalendarToolbar
         <button
           type="button"
           onClick={onPrevious}
-          className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-100 text-xl font-black text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200"
+          className="aura-icon-button"
           aria-label="Anterior"
         >
-          ‹
+          <Icon name="chevronLeft" className="h-6 w-6" />
         </button>
         <div className="text-center">
           <p className="aura-label">Calendario</p>
@@ -304,16 +307,16 @@ function CalendarToolbar({ title, onPrevious, onNext, onToday }: CalendarToolbar
         <button
           type="button"
           onClick={onNext}
-          className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-100 text-xl font-black text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200"
+          className="aura-icon-button"
           aria-label="Siguiente"
         >
-          ›
+          <Icon name="chevronRight" className="h-6 w-6" />
         </button>
       </div>
       <button
         type="button"
         onClick={onToday}
-        className="mt-4 w-full rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-black text-white shadow-lg shadow-cyan-500/25 transition hover:bg-cyan-600"
+        className="aura-primary mt-4 w-full text-sm"
       >
         Hoy
       </button>

@@ -6,12 +6,38 @@
   color-scheme: light;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #f8fafc;
+  --aura-bg: #f7fbff;
+  --aura-bg-soft: #eef7ff;
+  --aura-surface: rgba(255, 255, 255, 0.88);
+  --aura-surface-strong: rgba(255, 255, 255, 0.96);
+  --aura-border: rgba(44, 190, 255, 0.28);
+  --aura-border-strong: rgba(14, 165, 233, 0.58);
+  --aura-text: #0c1830;
+  --aura-muted: #58667c;
+  --aura-cyan: #22d3ee;
+  --aura-blue: #0ea5e9;
+  --aura-blue-deep: #0757b7;
+  --aura-glow: 0 18px 60px rgba(14, 165, 233, 0.14), 0 0 0 1px rgba(255, 255, 255, 0.78) inset;
+  --aura-glow-strong: 0 22px 80px rgba(14, 165, 233, 0.24), 0 0 28px rgba(34, 211, 238, 0.18);
+  background: var(--aura-bg);
 }
 
 :root.dark {
   color-scheme: dark;
-  background: #020617;
+  --aura-bg: #020714;
+  --aura-bg-soft: #051226;
+  --aura-surface: rgba(4, 13, 29, 0.82);
+  --aura-surface-strong: rgba(5, 17, 38, 0.94);
+  --aura-border: rgba(34, 211, 238, 0.2);
+  --aura-border-strong: rgba(56, 189, 248, 0.55);
+  --aura-text: #f7fbff;
+  --aura-muted: #a9b8cb;
+  --aura-cyan: #22d3ee;
+  --aura-blue: #0ea5e9;
+  --aura-blue-deep: #2563eb;
+  --aura-glow: 0 24px 80px rgba(8, 145, 178, 0.18), 0 0 0 1px rgba(34, 211, 238, 0.06) inset;
+  --aura-glow-strong: 0 28px 90px rgba(14, 165, 233, 0.34), 0 0 34px rgba(34, 211, 238, 0.22);
+  background: var(--aura-bg);
 }
 
 * {
@@ -29,14 +55,17 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(124, 58, 237, 0.14), transparent 34rem),
-    linear-gradient(135deg, #f8fafc 0%, #eef2ff 48%, #ecfeff 100%);
+    radial-gradient(circle at 13% 4%, rgba(34, 211, 238, 0.28), transparent 17rem),
+    radial-gradient(circle at 88% 12%, rgba(14, 165, 233, 0.16), transparent 18rem),
+    linear-gradient(180deg, #ffffff 0%, var(--aura-bg) 42%, var(--aura-bg-soft) 100%);
 }
 
 .dark body {
   background:
-    radial-gradient(circle at top left, rgba(124, 58, 237, 0.26), transparent 32rem),
-    linear-gradient(135deg, #020617 0%, #111827 54%, #0f172a 100%);
+    radial-gradient(circle at 14% 3%, rgba(34, 211, 238, 0.22), transparent 18rem),
+    radial-gradient(circle at 95% 10%, rgba(37, 99, 235, 0.16), transparent 19rem),
+    radial-gradient(circle at 50% 105%, rgba(14, 165, 233, 0.12), transparent 24rem),
+    linear-gradient(180deg, #010511 0%, #020714 48%, #030b1c 100%);
 }
 
 button,
@@ -51,15 +80,120 @@ button {
 }
 
 @layer components {
+  .aura-app-shell {
+    @apply min-h-screen pb-32 text-[color:var(--aura-text)] transition-colors duration-300;
+  }
+
   .aura-card {
-    @apply rounded-3xl border border-white/70 bg-white/80 shadow-xl shadow-slate-200/70 backdrop-blur dark:border-white/10 dark:bg-slate-900/80 dark:shadow-black/25;
+    border: 1px solid var(--aura-border);
+    background: var(--aura-surface);
+    box-shadow: var(--aura-glow);
+    @apply rounded-[1.75rem] backdrop-blur-2xl transition;
+  }
+
+  .aura-card-strong {
+    border: 1px solid var(--aura-border-strong);
+    background: var(--aura-surface-strong);
+    box-shadow: var(--aura-glow-strong);
+    @apply rounded-[2rem] backdrop-blur-2xl transition;
+  }
+
+  .aura-panel {
+    border: 1px solid var(--aura-border-strong);
+    background:
+      radial-gradient(circle at top left, rgba(34, 211, 238, 0.12), transparent 16rem),
+      var(--aura-surface-strong);
+    box-shadow: var(--aura-glow-strong);
+    @apply rounded-[2rem] backdrop-blur-2xl;
   }
 
   .aura-input {
-    @apply w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100;
+    border: 1px solid rgba(14, 165, 233, 0.22);
+    background: rgba(255, 255, 255, 0.78);
+    @apply w-full rounded-2xl px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-400/20 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder:text-slate-500;
   }
 
   .aura-label {
-    @apply text-xs font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400;
+    @apply text-xs font-black uppercase tracking-[0.24em] text-cyan-600 dark:text-cyan-300;
+  }
+
+  .aura-muted {
+    color: var(--aura-muted);
+  }
+
+  .aura-primary {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 46%, #2563eb 100%);
+    box-shadow: 0 14px 34px rgba(14, 165, 233, 0.34);
+    @apply rounded-2xl px-5 py-3 font-black text-white transition hover:-translate-y-0.5 hover:shadow-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .aura-secondary {
+    border: 1px solid rgba(14, 165, 233, 0.26);
+    background: rgba(255, 255, 255, 0.55);
+    @apply rounded-2xl px-5 py-3 font-black text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:text-cyan-200;
+  }
+
+  .aura-danger {
+    @apply rounded-2xl border border-rose-300/40 bg-rose-50 px-5 py-3 font-black text-rose-700 transition hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-200;
+  }
+
+  .aura-icon-button {
+    border: 1px solid rgba(14, 165, 233, 0.24);
+    background: rgba(255, 255, 255, 0.62);
+    @apply grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700 dark:bg-slate-950/45 dark:text-slate-200 dark:hover:text-cyan-200;
+  }
+
+  .aura-orb {
+    position: relative;
+    border: 1px solid rgba(34, 211, 238, 0.75);
+    background:
+      conic-gradient(from 220deg, #2563eb, #22d3ee, #f8fdff, #0284c7, #2563eb);
+    box-shadow: 0 0 24px rgba(34, 211, 238, 0.45), 0 0 48px rgba(14, 165, 233, 0.18);
+    @apply grid shrink-0 place-items-center rounded-full;
+  }
+
+  .aura-orb::after {
+    content: "";
+    width: 64%;
+    height: 64%;
+    border-radius: 9999px;
+    background: var(--aura-bg);
+    box-shadow: inset 0 0 18px rgba(2, 132, 199, 0.22);
+  }
+
+  .aura-fab {
+    border: 1px solid rgba(34, 211, 238, 0.75);
+    background: radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.24), transparent 36%), rgba(3, 13, 30, 0.82);
+    box-shadow: 0 16px 48px rgba(14, 165, 233, 0.34), 0 0 0 6px rgba(14, 165, 233, 0.08);
+    @apply grid place-items-center rounded-full text-white transition hover:scale-105 active:scale-95 dark:bg-slate-950;
+  }
+
+  .aura-nav-shell {
+    border: 1px solid rgba(14, 165, 233, 0.2);
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow: 0 18px 55px rgba(15, 23, 42, 0.12);
+    @apply rounded-[1.7rem] backdrop-blur-2xl dark:bg-slate-950/80 dark:shadow-black/40;
+  }
+
+  .aura-form-row {
+    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    @apply flex min-h-16 items-center gap-3 px-4 py-3 last:border-b-0;
+  }
+
+  .aura-row-icon {
+    @apply grid h-9 w-9 shrink-0 place-items-center rounded-2xl text-slate-500 dark:text-slate-300;
+  }
+
+  .aura-switch {
+    @apply relative h-8 w-14 cursor-pointer appearance-none rounded-full bg-slate-300 outline-none transition before:absolute before:left-1 before:top-1 before:h-6 before:w-6 before:rounded-full before:bg-white before:shadow-md before:transition checked:bg-cyan-500 checked:before:translate-x-6 focus:ring-4 focus:ring-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700;
+  }
+
+  .aura-chip {
+    border: 1px solid rgba(14, 165, 233, 0.18);
+    @apply rounded-full bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-200;
+  }
+
+  .aura-alert {
+    @apply rounded-3xl border border-amber-300/50 bg-amber-50/90 p-4 text-sm font-bold text-amber-900 shadow-sm dark:bg-amber-400/10 dark:text-amber-100;
   }
 }

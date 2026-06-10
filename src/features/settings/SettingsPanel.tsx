@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTheme } from '../../app/providers/ThemeProvider';
+import { Icon } from '../../shared/icons';
 import {
   getNotificationPermission,
   requestNotificationPermission,
@@ -34,7 +35,7 @@ export function SettingsPanel() {
       <div className="aura-card p-5">
         <p className="aura-label">Ajustes</p>
         <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">Preferencias locales</h2>
-        <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+        <p className="aura-muted mt-3 text-sm leading-relaxed">
           Todo queda en este dispositivo durante la Fase 1. Sin login, sin nube y sin calendarios externos.
         </p>
       </div>
@@ -50,8 +51,9 @@ export function SettingsPanel() {
           <button
             type="button"
             onClick={toggleTheme}
-            className="rounded-2xl bg-slate-950 px-5 py-3 font-black text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950"
+            className="aura-secondary flex items-center gap-2"
           >
+            <Icon name={theme === 'dark' ? 'sun' : 'moon'} className="h-5 w-5" />
             Cambiar
           </button>
         </div>
@@ -60,7 +62,7 @@ export function SettingsPanel() {
       <div className="aura-card p-5">
         <p className="aura-label">Notificaciones</p>
         <h3 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Estado: {labelFor(permission)}</h3>
-        <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+        <p className="aura-muted mt-3 text-sm leading-relaxed">
           En esta fase los recordatorios se programan mientras la PWA está abierta. Si la app está cerrada, Android no
           garantiza ejecución exacta desde el navegador.
         </p>
@@ -69,25 +71,25 @@ export function SettingsPanel() {
           <button
             type="button"
             onClick={handleRequestPermission}
-            className="rounded-2xl bg-violet-600 px-4 py-3 font-black text-white shadow-lg shadow-violet-600/25 transition hover:bg-violet-700"
+            className="aura-primary"
           >
             Solicitar permiso
           </button>
           <button
             type="button"
             onClick={handleTestNotification}
-            className="rounded-2xl bg-cyan-500 px-4 py-3 font-black text-white shadow-lg shadow-cyan-500/25 transition hover:bg-cyan-600"
+            className="aura-primary"
           >
             Probar notificación
           </button>
         </div>
 
-        {testMessage ? <p className="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">{testMessage}</p> : null}
+        {testMessage ? <p className="aura-muted mt-3 text-sm font-semibold">{testMessage}</p> : null}
       </div>
 
       <div className="aura-card p-5">
         <p className="aura-label">Futuras fases</p>
-        <div className="mt-3 grid gap-2 text-sm text-slate-600 dark:text-slate-300">
+        <div className="aura-muted mt-3 grid gap-2 text-sm">
           <p>• Repeticiones avanzadas y adjuntos.</p>
           <p>• Supabase Auth, Database y Storage.</p>
           <p>• Calendarios compartidos.</p>
