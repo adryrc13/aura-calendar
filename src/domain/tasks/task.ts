@@ -30,6 +30,8 @@ export interface ModifiedOccurrence {
 
 export interface Task {
   id: string;
+  calendarId?: string;
+  ownerId?: string;
   title: string;
   description: string;
   date: string;
@@ -59,7 +61,7 @@ export interface Task {
   updatedAt: string;
 }
 
-export type TaskDraft = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
+export type TaskDraft = Omit<Task, 'id' | 'calendarId' | 'ownerId' | 'createdAt' | 'updatedAt'>;
 
 export type TaskFormValues = Partial<TaskDraft> & Pick<TaskDraft, 'date' | 'time'>;
 

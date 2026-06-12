@@ -690,7 +690,9 @@ export function parseSpanishTaskCommand(input: string, options: ParseOptions = {
   const time = parseTime(timeSource, Boolean(guidedFields?.hora));
   const reminder = parseReminder(normalized, guidedFields?.alarma, guidedFields?.recordatorio);
   const recurrence = parseRecurrence(normalized);
-  const recurrenceDate = date.value ?? (recurrence.type !== 'none' ? todayInputValue() : undefined);
+  const referenceDateValue = toDateInputValue(startOfDay(referenceDate));
+  const nextReferenceDateValue = toDateInputValue(addDays(startOfDay(referenceDate), 1));
+  const recurrenceDate = date.value ?? (recurrence.type !== 'none' ? nextReferenceDateValue : undefined);
   const recurrenceDateLabel = date.label ?? (recurrence.type !== 'none' ? formatHumanDate(referenceDate) : undefined);
 
   const confirmationReasons = [date.confirmationReason, time.confirmationReason].filter(Boolean) as string[];
@@ -714,7 +716,7 @@ export function parseSpanishTaskCommand(input: string, options: ParseOptions = {
   const draft: TaskFormValues = {
     title,
     description: transcript ? `Creada desde asistente: "${transcript}"` : '',
-    date: recurrenceDate ?? todayInputValue(),
+    date: recurrenceDate ?? referenceDateValue,
     time: time.value ?? '09:00',
     color: 'violet',
     textColor: '#ffffff',

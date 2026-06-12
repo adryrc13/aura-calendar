@@ -53,6 +53,7 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
   const [reminderMinutesInput, setReminderMinutesInput] = useState(() => `${draft.reminderMinutesBefore}`);
   const [recurrenceIntervalInput, setRecurrenceIntervalInput] = useState(() => `${draft.recurrenceInterval}`);
   const [isSaving, setIsSaving] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     const nextDraft = buildInitialDraft(task, initialValues);
@@ -73,9 +74,16 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
     setDraft(validatedDraft);
     setReminderMinutesInput(`${validatedDraft.reminderMinutesBefore}`);
     setRecurrenceIntervalInput(`${validatedDraft.recurrenceInterval}`);
+    setSubmitError('');
     setIsSaving(true);
-    await onSubmit(validatedDraft);
-    setIsSaving(false);
+
+    try {
+      await onSubmit(validatedDraft);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function validateNumericFields(current: TaskDraft): TaskDraft {
@@ -416,6 +424,8 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
           </>
         ) : null}
       </section>
+
+      {submitError ? <div className="aura-alert">{submitError}</div> : null}
 
       <div className="flex justify-start gap-3 pt-2">
         <button type="button" onClick={onCancel} className="aura-secondary min-w-32">

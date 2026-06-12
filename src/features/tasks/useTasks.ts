@@ -3,10 +3,14 @@ import { normalizeTaskAttachments } from '../../domain/tasks/attachment';
 import type { Task, TaskDraft } from '../../domain/tasks/task';
 import { DEFAULT_TASK_DRAFT, TASK_COLORS } from '../../domain/tasks/task';
 import { buildRecurrenceRule, isRecurringTask, isVirtualOccurrence } from '../../domain/tasks/recurrence';
-import { getActiveTaskRepository } from '../../infrastructure/tasks/taskRepositoryProvider';
+import {
+  getTaskRepository,
+  getTaskRepositoryMode,
+  setTaskRepositoryMode,
+  subscribeTaskRepositoryModeChange,
+  type TaskRepositoryMode,
+} from '../../infrastructure/tasks/taskRepositoryProvider';
 import { createId } from '../../shared/id';
-
-const taskRepository = getActiveTaskRepository();
 
 function normalizeDraft(draft: TaskDraft): TaskDraft {
   const color = TASK_COLORS.find((item) => item.value === draft.color) ?? TASK_COLORS[0];
@@ -50,13 +54,35 @@ function normalizeDraft(draft: TaskDraft): TaskDraft {
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [taskRepositoryMode, setTaskRepositoryModeState] = useState<TaskRepositoryMode>(() => getTaskRepositoryMode());
+  const [taskError, setTaskError] = useState('');
+
+  useEffect(() => subscribeTaskRepositoryModeChange(setTaskRepositoryModeState), []);
+
+  const repository = useMemo(() => getTaskRepository(taskRepositoryMode), [taskRepositoryMode]);
 
   const reload = useCallback(async () => {
     setIsLoading(true);
-    const allTasks = await taskRepository.getAll();
-    setTasks(allTasks);
-    setIsLoading(false);
-  }, []);
+
+    try {
+      const allTasks = await repository.getAll();
+      setTasks(allTasks);
+      setTaskError('');
+    } catch (error) {
+      const message = errorMessage(error);
+
+      if (taskRepositoryMode === 'remote') {
+        setTaskRepositoryMode('local');
+        const localTasks = await getTaskRepository('local').getAll();
+        setTasks(localTasks);
+        setTaskError(`${message} Volvimos a modo local para no perder datos.`);
+      } else {
+        setTaskError(message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [repository, taskRepositoryMode]);
 
   useEffect(() => {
     reload();
@@ -75,11 +101,15 @@ export function useTasks() {
         updatedAt: now,
       };
 
-      await taskRepository.upsert(task);
-      await reload();
-      return task;
+      try {
+        await repository.upsert(task);
+        await reload();
+        return task;
+      } catch (error) {
+        throw setOperationError('No pudimos crear la tarea.', error, setTaskError);
+      }
     },
-    [reload],
+    [reload, repository],
   );
 
   const updateTask = useCallback(
@@ -96,88 +126,106 @@ export function useTasks() {
         ...taskToUpdate,
         ...normalizedDraft,
         id: taskToUpdate.id,
+        calendarId: taskToUpdate.calendarId,
+        ownerId: taskToUpdate.ownerId,
         attachments: normalizeTaskAttachments(normalizedDraft.attachments, taskToUpdate.id, now),
         createdAt: taskToUpdate.createdAt,
         updatedAt: now,
       };
 
-      await taskRepository.upsert(updatedTask);
-      await reload();
-      return updatedTask;
+      try {
+        await repository.upsert(updatedTask);
+        await reload();
+        return updatedTask;
+      } catch (error) {
+        throw setOperationError('No pudimos actualizar la tarea.', error, setTaskError);
+      }
     },
-    [reload, tasks],
+    [reload, repository, tasks],
   );
 
   const deleteTask = useCallback(
     async (id: string) => {
-      await taskRepository.delete(id);
-      await reload();
+      try {
+        await repository.delete(id);
+        await reload();
+      } catch (error) {
+        throw setOperationError('No pudimos eliminar la tarea.', error, setTaskError);
+      }
     },
-    [reload],
+    [reload, repository],
   );
 
   const toggleTaskCompleted = useCallback(
     async (task: Task) => {
-      if (isVirtualOccurrence(task) && task.sourceTaskId && task.occurrenceDate) {
-        const series = tasks.find((item) => item.id === task.sourceTaskId);
+      try {
+        if (isVirtualOccurrence(task) && task.sourceTaskId && task.occurrenceDate) {
+          const series = tasks.find((item) => item.id === task.sourceTaskId);
 
-        if (!series) return;
+          if (!series) return;
 
-        await taskRepository.upsert({
-          ...series,
-          modifiedOccurrences: {
-            ...(series.modifiedOccurrences ?? {}),
-            [task.occurrenceDate]: {
-              ...(series.modifiedOccurrences?.[task.occurrenceDate] ?? {}),
-              completed: !task.completed,
+          await repository.upsert({
+            ...series,
+            modifiedOccurrences: {
+              ...(series.modifiedOccurrences ?? {}),
+              [task.occurrenceDate]: {
+                ...(series.modifiedOccurrences?.[task.occurrenceDate] ?? {}),
+                completed: !task.completed,
+              },
             },
-          },
-          updatedAt: new Date().toISOString(),
-        });
-        await reload();
-        return;
-      }
-
-      await taskRepository.upsert({
-        ...task,
-        completed: !task.completed,
-        updatedAt: new Date().toISOString(),
-      });
-      await reload();
-    },
-    [reload, tasks],
-  );
-
-  const deleteOccurrence = useCallback(
-    async (task: Task) => {
-      if (!isVirtualOccurrence(task) || !task.sourceTaskId || !task.occurrenceDate) {
-        if (isRecurringTask(task)) {
-          await taskRepository.upsert({
-            ...task,
-            exceptionDates: [...new Set([...(task.exceptionDates ?? []), task.date])].sort(),
             updatedAt: new Date().toISOString(),
           });
           await reload();
           return;
         }
 
-        await taskRepository.delete(task.id);
+        await repository.upsert({
+          ...task,
+          completed: !task.completed,
+          updatedAt: new Date().toISOString(),
+        });
         await reload();
-        return;
+      } catch (error) {
+        throw setOperationError('No pudimos cambiar el estado de la tarea.', error, setTaskError);
       }
-
-      const series = tasks.find((item) => item.id === task.sourceTaskId);
-
-      if (!series) return;
-
-      await taskRepository.upsert({
-        ...series,
-        exceptionDates: [...new Set([...(series.exceptionDates ?? []), task.occurrenceDate])].sort(),
-        updatedAt: new Date().toISOString(),
-      });
-      await reload();
     },
-    [reload, tasks],
+    [reload, repository, tasks],
+  );
+
+  const deleteOccurrence = useCallback(
+    async (task: Task) => {
+      try {
+        if (!isVirtualOccurrence(task) || !task.sourceTaskId || !task.occurrenceDate) {
+          if (isRecurringTask(task)) {
+            await repository.upsert({
+              ...task,
+              exceptionDates: [...new Set([...(task.exceptionDates ?? []), task.date])].sort(),
+              updatedAt: new Date().toISOString(),
+            });
+            await reload();
+            return;
+          }
+
+          await repository.delete(task.id);
+          await reload();
+          return;
+        }
+
+        const series = tasks.find((item) => item.id === task.sourceTaskId);
+
+        if (!series) return;
+
+        await repository.upsert({
+          ...series,
+          exceptionDates: [...new Set([...(series.exceptionDates ?? []), task.occurrenceDate])].sort(),
+          updatedAt: new Date().toISOString(),
+        });
+        await reload();
+      } catch (error) {
+        throw setOperationError('No pudimos eliminar la ocurrencia.', error, setTaskError);
+      }
+    },
+    [reload, repository, tasks],
   );
 
   const stats = useMemo(() => {
@@ -189,10 +237,23 @@ export function useTasks() {
     tasks,
     isLoading,
     stats,
+    taskRepositoryMode,
+    taskError,
+    clearTaskError: () => setTaskError(''),
     createTask,
     updateTask,
     deleteTask,
     deleteOccurrence,
     toggleTaskCompleted,
   };
+}
+
+function setOperationError(prefix: string, error: unknown, setTaskError: (message: string) => void) {
+  const message = `${prefix} ${errorMessage(error)}`;
+  setTaskError(message);
+  return new Error(message);
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }

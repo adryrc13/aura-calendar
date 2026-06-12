@@ -3,5 +3,10 @@ export function createId() {
     return crypto.randomUUID();
   }
 
-  return `task-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (character) => {
+    const value = Math.floor(Math.random() * 16);
+    const uuidValue = character === 'x' ? value : (value & 0x3) | 0x8;
+
+    return uuidValue.toString(16);
+  });
 }

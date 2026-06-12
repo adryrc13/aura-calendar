@@ -38,7 +38,19 @@ const NAV_ITEMS: Array<{ view: AppView; label: string; icon: IconName }> = [
 
 export function App() {
   const { theme, toggleTheme } = useTheme();
-  const { tasks, stats, isLoading, createTask, updateTask, deleteTask, deleteOccurrence, toggleTaskCompleted } = useTasks();
+  const {
+    tasks,
+    stats,
+    isLoading,
+    taskRepositoryMode,
+    taskError,
+    clearTaskError,
+    createTask,
+    updateTask,
+    deleteTask,
+    deleteOccurrence,
+    toggleTaskCompleted,
+  } = useTasks();
   const [activeView, setActiveView] = useState<AppView>('today');
   const [selectedDate, setSelectedDate] = useState(todayInputValue());
   const [monthDate, setMonthDate] = useState(new Date());
@@ -111,6 +123,8 @@ export function App() {
   }
 
   async function handleTaskSubmit(draft: TaskDraft) {
+    clearTaskError();
+
     if (taskModal?.mode === 'edit' && taskModal.task) {
       await updateTask(taskModal.task, draft);
     } else {
@@ -129,7 +143,11 @@ export function App() {
 
     const shouldDelete = window.confirm(`¿Eliminar “${task.title}”?`);
     if (!shouldDelete) return;
-    await deleteTask(task.id);
+    try {
+      await deleteTask(task.id);
+    } catch {
+      // useTasks ya expone el error de forma visible sin romper la UI.
+    }
   }
 
   async function deleteWholeSeries(task: Task) {
@@ -137,13 +155,29 @@ export function App() {
     setSeriesAction(null);
 
     if (series) {
-      await deleteTask(series.id);
+      try {
+        await deleteTask(series.id);
+      } catch {
+        // useTasks ya expone el error de forma visible sin romper la UI.
+      }
     }
   }
 
   async function deleteSingleOccurrence(task: Task) {
     setSeriesAction(null);
-    await deleteOccurrence(task);
+    try {
+      await deleteOccurrence(task);
+    } catch {
+      // useTasks ya expone el error de forma visible sin romper la UI.
+    }
+  }
+
+  async function handleToggleTaskCompleted(task: Task) {
+    try {
+      await toggleTaskCompleted(task);
+    } catch {
+      // useTasks ya expone el error de forma visible sin romper la UI.
+    }
   }
 
   function resolveSeriesTask(task: Task) {
@@ -154,7 +188,7 @@ export function App() {
     if (isLoading) {
       return (
         <div className="aura-card p-6 text-center text-sm font-bold text-slate-600 dark:text-slate-300">
-          Cargando tareas locales…
+          Cargando tareas {taskRepositoryMode === 'remote' ? 'remotas' : 'locales'}…
         </div>
       );
     }
@@ -170,7 +204,7 @@ export function App() {
           onCreateTask={openCreateTask}
           onEditTask={openEditTask}
           onDeleteTask={handleDeleteTask}
-          onToggleTask={toggleTaskCompleted}
+          onToggleTask={handleToggleTaskCompleted}
         />
       );
     }
@@ -182,7 +216,7 @@ export function App() {
           onCreateTask={openCreateTask}
           onEditTask={openEditTask}
           onDeleteTask={handleDeleteTask}
-          onToggleTask={toggleTaskCompleted}
+          onToggleTask={handleToggleTaskCompleted}
         />
       );
     }
@@ -209,7 +243,7 @@ export function App() {
         onCreateTask={openCreateTask}
         onEditTask={openEditTask}
         onDeleteTask={handleDeleteTask}
-        onToggleTask={toggleTaskCompleted}
+        onToggleTask={handleToggleTaskCompleted}
       />
     );
   }
@@ -250,6 +284,15 @@ export function App() {
         {voiceStatus ? (
           <div className="aura-alert">
             {voiceStatus}
+          </div>
+        ) : null}
+
+        {taskError ? (
+          <div className="aura-alert flex items-start justify-between gap-3">
+            <span>{taskError}</span>
+            <button type="button" onClick={clearTaskError} className="text-xs font-black uppercase tracking-wide">
+              Cerrar
+            </button>
           </div>
         ) : null}
 

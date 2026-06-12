@@ -37,7 +37,7 @@ export function SettingsPanel() {
         <p className="aura-label">Ajustes</p>
         <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">Preferencias locales</h2>
         <p className="aura-muted mt-3 text-sm leading-relaxed">
-          Todo sigue funcionando en este dispositivo. Supabase queda disponible de forma opcional para preparar usuarios y sincronización.
+          Todo sigue funcionando en este dispositivo. Supabase queda disponible de forma opcional para usuarios y sincronización.
         </p>
       </div>
 
@@ -94,7 +94,7 @@ export function SettingsPanel() {
         <p className="aura-label">Futuras fases</p>
         <div className="aura-muted mt-3 grid gap-2 text-sm">
           <p>• Repeticiones avanzadas y adjuntos.</p>
-          <p>• Supabase Auth, Database y Storage remoto de adjuntos.</p>
+          <p>• Supabase Storage remoto de adjuntos.</p>
           <p>• Calendarios compartidos.</p>
           <p>• Capacitor, APK/AAB y notificaciones nativas Android.</p>
         </div>
