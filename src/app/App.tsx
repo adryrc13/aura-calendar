@@ -3,7 +3,7 @@ import type { Task, TaskDraft, TaskFormValues } from '../domain/tasks/task';
 import { expandTasksInRange, isRecurringTask, isVirtualOccurrence } from '../domain/tasks/recurrence';
 import { useReminderScheduler } from '../infrastructure/notifications/reminderScheduler';
 import { AssistantPanel } from '../features/assistant/AssistantPanel';
-import { parseSpanishTaskCommand } from '../features/assistant/spanishTaskParser';
+import { parseTaskCommand } from '../features/assistant/taskCommandParser';
 import { useVoiceRecognition } from '../features/assistant/useVoiceRecognition';
 import { AgendaView, DayView, MonthView } from '../features/calendar/CalendarViews';
 import { SettingsPanel } from '../features/settings/SettingsPanel';
@@ -11,6 +11,7 @@ import { TaskForm } from '../features/tasks/TaskForm';
 import { useTasks } from '../features/tasks/useTasks';
 import { addDays, parseInputDate, todayInputValue, toDateInputValue } from '../shared/date';
 import { Icon, type IconName } from '../shared/icons';
+import { useI18n } from '../shared/i18n';
 import { useTheme } from './providers/ThemeProvider';
 
 type AppView = 'today' | 'calendar' | 'agenda' | 'assistant' | 'settings';
@@ -28,16 +29,17 @@ interface SeriesActionState {
   task: Task;
 }
 
-const NAV_ITEMS: Array<{ view: AppView; label: string; icon: IconName }> = [
-  { view: 'today', label: 'Hoy', icon: 'calendar' },
-  { view: 'calendar', label: 'Calendario', icon: 'calendarDots' },
-  { view: 'agenda', label: 'Agenda', icon: 'list' },
-  { view: 'assistant', label: 'Asistente', icon: 'sparkles' },
-  { view: 'settings', label: 'Ajustes', icon: 'settings' },
+const NAV_ITEMS: Array<{ view: AppView; labelKey: string; icon: IconName }> = [
+  { view: 'today', labelKey: 'nav.today', icon: 'calendar' },
+  { view: 'calendar', labelKey: 'nav.calendar', icon: 'calendarDots' },
+  { view: 'agenda', labelKey: 'nav.agenda', icon: 'list' },
+  { view: 'assistant', labelKey: 'nav.assistant', icon: 'sparkles' },
+  { view: 'settings', labelKey: 'nav.settings', icon: 'settings' },
 ];
 
 export function App() {
   const { theme, toggleTheme } = useTheme();
+  const { language, t } = useI18n();
   const {
     tasks,
     stats,
@@ -72,13 +74,13 @@ export function App() {
   const selectedDateObject = useMemo(() => parseInputDate(selectedDate), [selectedDate]);
   const { startListening } = useVoiceRecognition({
     onTranscript: (transcript) => {
-      const parsed = parseSpanishTaskCommand(transcript);
+      const parsed = parseTaskCommand(transcript, language);
       const assistantNotice = parsed.confirmationReasons.join(' ');
       setActiveView('assistant');
       setVoiceStatus(
         parsed.confidence === 'complete'
           ? parsed.summary
-          : `${parsed.summary} Confirmá: ${assistantNotice}`,
+          : `${parsed.summary} ${t('app.confirmPrefix', { reasons: assistantNotice })}`,
       );
       openCreateTask(parsed.draft, assistantNotice, parsed.detected.suggestedTimes);
     },
@@ -141,7 +143,7 @@ export function App() {
       return;
     }
 
-    const shouldDelete = window.confirm(`¿Eliminar “${task.title}”?`);
+    const shouldDelete = window.confirm(t('app.deleteConfirm', { title: task.title }));
     if (!shouldDelete) return;
     try {
       await deleteTask(task.id);
@@ -188,7 +190,7 @@ export function App() {
     if (isLoading) {
       return (
         <div className="aura-card p-6 text-center text-sm font-bold text-slate-600 dark:text-slate-300">
-          Cargando tareas {taskRepositoryMode === 'remote' ? 'remotas' : 'locales'}…
+          {t('app.loadingTasks', { mode: taskRepositoryMode })}
         </div>
       );
     }
@@ -261,7 +263,7 @@ export function App() {
     <div className="aura-app-shell">
       <header className="sticky top-0 z-20 px-4 py-4 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          <button type="button" onClick={goToday} className="min-w-0 text-left" aria-label="Ir a hoy">
+          <button type="button" onClick={goToday} className="min-w-0 text-left" aria-label={t('app.goToday')}>
             <AuraLogo />
           </button>
 
@@ -269,7 +271,7 @@ export function App() {
             type="button"
             onClick={toggleTheme}
             className="aura-icon-button h-14 w-14 rounded-3xl text-cyan-700 shadow-lg shadow-cyan-500/10 dark:text-cyan-100"
-            aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            aria-label={theme === 'dark' ? t('app.themeToLight') : t('app.themeToDark')}
           >
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} className="h-6 w-6" />
           </button>
@@ -291,7 +293,7 @@ export function App() {
           <div className="aura-alert flex items-start justify-between gap-3">
             <span>{taskError}</span>
             <button type="button" onClick={clearTaskError} className="text-xs font-black uppercase tracking-wide">
-              Cerrar
+              {t('common.close')}
             </button>
           </div>
         ) : null}
@@ -304,7 +306,7 @@ export function App() {
           type="button"
           onClick={handleStartVoice}
           className="aura-fab h-14 w-14"
-          aria-label="Crear tarea por voz"
+          aria-label={t('app.voiceCreate')}
         >
           <Icon name="mic" className="h-7 w-7" />
         </button>
@@ -313,7 +315,7 @@ export function App() {
           type="button"
           onClick={() => openCreateTask(selectedDate)}
           className="aura-fab h-16 w-16"
-          aria-label="Crear tarea"
+          aria-label={t('common.createTask')}
         >
           <Icon name="plus" className="h-9 w-9" />
         </button>
@@ -345,7 +347,7 @@ export function App() {
                 <span className="mx-auto grid h-7 w-7 place-items-center">
                   <Icon name={item.icon} className="h-6 w-6" />
                 </span>
-                <span className="mt-1 block truncate">{item.label}</span>
+                <span className="mt-1 block truncate">{t(item.labelKey)}</span>
                 {isActive ? <span className="mx-auto mt-1 block h-1.5 w-1.5 rounded-full bg-cyan-500 shadow-[0_0_14px_rgba(34,211,238,0.9)]" /> : null}
               </button>
             );
@@ -362,14 +364,14 @@ export function App() {
                   <Icon name="sparkles" className="h-6 w-6" />
                 </span>
                 <h2 className="text-2xl font-black text-slate-950 dark:text-white">
-                  {taskModal.mode === 'edit' ? 'Editar tarea' : 'Nueva tarea'}
+                  {taskModal.mode === 'edit' ? t('app.editTask') : t('app.newTask')}
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setTaskModal(null)}
                 className="aura-icon-button"
-                aria-label="Cerrar formulario"
+                aria-label={t('app.closeForm')}
               >
                 <Icon name="close" className="h-6 w-6" />
               </button>
@@ -389,12 +391,9 @@ export function App() {
       {seriesAction ? (
         <div className="fixed inset-0 z-50 grid place-items-end bg-slate-950/55 p-3 backdrop-blur-md sm:place-items-center">
           <section className="aura-panel w-full max-w-md p-5">
-            <p className="aura-label">Tarea recurrente</p>
+            <p className="aura-label">{t('app.series.title')}</p>
             <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{seriesAction.task.title}</h2>
-            <p className="aura-muted mt-3 text-sm leading-relaxed">
-              Esta tarea pertenece a una serie. La estructura para ocurrencias individuales ya está preparada; en esta
-              fase la edición parcial queda pendiente para no simular algo incompleto.
-            </p>
+            <p className="aura-muted mt-3 text-sm leading-relaxed">{t('app.series.description')}</p>
 
             <div className="mt-5 space-y-3">
               {seriesAction.action === 'edit' ? (
@@ -404,14 +403,14 @@ export function App() {
                     disabled
                     className="aura-secondary w-full text-sm text-slate-400 dark:text-slate-500"
                   >
-                    Editar solo esta ocurrencia — pendiente
+                    {t('app.series.editOccurrencePending')}
                   </button>
                   <button
                     type="button"
                     onClick={() => editWholeSeries(seriesAction.task)}
                     className="aura-primary w-full text-sm"
                   >
-                    Editar toda la serie
+                    {t('app.series.editSeries')}
                   </button>
                 </>
               ) : (
@@ -421,14 +420,14 @@ export function App() {
                     onClick={() => deleteSingleOccurrence(seriesAction.task)}
                     className="aura-danger w-full text-sm"
                   >
-                    Eliminar solo esta ocurrencia
+                    {t('app.series.deleteOccurrence')}
                   </button>
                   <button
                     type="button"
                     onClick={() => deleteWholeSeries(seriesAction.task)}
                     className="w-full rounded-2xl bg-rose-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-rose-600/25 transition hover:bg-rose-700"
                   >
-                    Eliminar toda la serie
+                    {t('app.series.deleteSeries')}
                   </button>
                 </>
               )}
@@ -437,7 +436,7 @@ export function App() {
                 onClick={() => setSeriesAction(null)}
                 className="aura-secondary w-full text-sm"
               >
-                Cancelar
+                {t('common.cancel')}
               </button>
             </div>
           </section>
@@ -465,11 +464,12 @@ function AuraLogo() {
 }
 
 function StatsCard({ pending, completed }: { pending: number; completed: number }) {
+  const { t } = useI18n();
   return (
     <section className="aura-card grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-5 py-4">
-      <StatItem icon="calendar" value={pending} label="Pendientes" />
+      <StatItem icon="calendar" value={pending} label={t('app.stats.pending')} />
       <div className="h-14 w-px bg-slate-300/70 dark:bg-slate-700/70" />
-      <StatItem icon="check" value={completed} label="Hechas" />
+      <StatItem icon="check" value={completed} label={t('app.stats.completed')} />
     </section>
   );
 }
@@ -489,23 +489,24 @@ function StatItem({ icon, value, label }: { icon: IconName; value: number; label
 }
 
 function AssistantHero({ onMicClick }: { onMicClick: () => void }) {
+  const { t } = useI18n();
   return (
     <section className="aura-card relative overflow-hidden p-5">
       <div className="pointer-events-none absolute inset-x-6 bottom-0 h-24 rounded-full bg-cyan-400/10 blur-3xl" />
       <div className="relative flex items-center gap-4">
         <div className="aura-orb h-20 w-20" />
         <div className="min-w-0 flex-1">
-          <p className="aura-label">Asistente local</p>
-          <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">¿Qué necesitas planear hoy?</h2>
+          <p className="aura-label">{t('app.assistantHero.label')}</p>
+          <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">{t('app.assistantHero.title')}</h2>
           <p className="aura-muted mt-2 text-sm leading-relaxed">
-            Di o escribe tu tarea. Ej: “mañana a las 9 tomar medicación con alarma”
+            {t('app.assistantHero.description')}
           </p>
         </div>
         <button
           type="button"
           onClick={onMicClick}
           className="aura-fab hidden h-20 w-20 shrink-0 sm:grid"
-          aria-label="Crear tarea por voz"
+          aria-label={t('app.voiceCreate')}
         >
           <Icon name="mic" className="h-9 w-9" />
         </button>

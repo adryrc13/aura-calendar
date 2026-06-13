@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { Task } from '../../domain/tasks/task';
+import { useI18n } from '../../shared/i18n';
 import { showBrowserNotification } from './browserNotifications';
 
 function toReminderTimestamp(task: Task) {
@@ -8,6 +9,8 @@ function toReminderTimestamp(task: Task) {
 }
 
 export function useReminderScheduler(tasks: Task[]) {
+  const { t } = useI18n();
+
   useEffect(() => {
     const now = Date.now();
     const timeouts = tasks
@@ -24,8 +27,8 @@ export function useReminderScheduler(tasks: Task[]) {
         // Local Notifications, porque el navegador no garantiza ejecución exacta en background.
         return window.setTimeout(() => {
           showBrowserNotification(
-            `Recordatorio: ${task.title}`,
-            `${task.time} · ${task.description || 'Tenés una tarea pendiente en Aura Calendar.'}`,
+            t('notifications.reminderTitle', { title: task.title }),
+            t('notifications.reminderBody', { time: task.time, description: task.description }),
             task.reminderSilent,
           );
         }, delay);
@@ -35,5 +38,5 @@ export function useReminderScheduler(tasks: Task[]) {
     return () => {
       timeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
     };
-  }, [tasks]);
+  }, [tasks, t]);
 }

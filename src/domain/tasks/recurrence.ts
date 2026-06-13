@@ -1,5 +1,6 @@
-﻿import type { RecurrenceType, Task } from './task';
+import type { RecurrenceType, Task } from './task';
 import { parseInputDate, toDateInputValue } from '../../shared/date';
+import { createTranslator, type Language, type TranslationParams } from '../../shared/i18n';
 
 export interface OccurrenceRange {
   start: string;
@@ -159,33 +160,38 @@ function startOfWeek(date: Date) {
   return stripped;
 }
 
-export function recurrenceLabel(task: Pick<Task, 'recurrenceType' | 'recurrenceInterval' | 'recurrenceDaysOfWeek' | 'recurrenceDaysOfMonth'>) {
+type Translate = (key: string, params?: TranslationParams) => string;
+
+export function recurrenceLabel(
+  task: Pick<Task, 'recurrenceType' | 'recurrenceInterval' | 'recurrenceDaysOfWeek' | 'recurrenceDaysOfMonth'>,
+  translate: Translate = createTranslator('es'),
+  language: Language = 'es',
+) {
   const type = task.recurrenceType ?? 'none';
 
-  if (type === 'none') return 'Sin repetición';
-  if (type === 'daily') return 'Diaria';
-  if (type === 'weekly') return 'Semanal';
-  if (type === 'monthly') return 'Mensual';
-  if (type === 'yearly') return 'Anual';
-  if (type === 'alternate-days') return 'Día sí, día no';
-  if (type === 'custom-days') return `Cada ${task.recurrenceInterval || 1} días`;
-  if (type === 'custom-weeks') return `Cada ${task.recurrenceInterval || 1} semanas`;
-  if (type === 'weekdays') return `Semanal: ${formatWeekdays(task.recurrenceDaysOfWeek ?? [])}`;
-  if (type === 'month-days') return `Mensual: día ${(task.recurrenceDaysOfMonth ?? []).join(' y ')}`;
+  if (type === 'custom-days') return translate('recurrence.label.custom-days', { count: task.recurrenceInterval || 1 });
+  if (type === 'custom-weeks') return translate('recurrence.label.custom-weeks', { count: task.recurrenceInterval || 1 });
+  if (type === 'weekdays') {
+    return translate('recurrence.label.weekdays', { days: formatWeekdays(task.recurrenceDaysOfWeek ?? [], translate, language) });
+  }
+  if (type === 'month-days') {
+    return translate('recurrence.label.month-days', { days: formatList((task.recurrenceDaysOfMonth ?? []).map(String), language) });
+  }
+  if (type !== 'none') return translate(`recurrence.label.${type}`);
 
-  return 'Repetición';
+  return translate('recurrence.label.none');
 }
 
-function formatWeekdays(days: number[]) {
-  const labels: Record<number, string> = {
-    0: 'domingo',
-    1: 'lunes',
-    2: 'martes',
-    3: 'miércoles',
-    4: 'jueves',
-    5: 'viernes',
-    6: 'sábado',
-  };
+function formatWeekdays(days: number[], translate: Translate, language: Language) {
+  const labels = days.map((day) => translate(`weekday.${day}`)).filter(Boolean);
 
-  return days.map((day) => labels[day]).filter(Boolean).join(' y ') || 'día inicial';
+  return formatList(labels, language) || translate('recurrence.label.initialDay');
+}
+
+function formatList(items: string[], language: Language) {
+  if (!items.length) return '';
+  if (items.length === 1) return items[0];
+
+  const separator = language === 'en' ? ' and ' : ' y ';
+  return `${items.slice(0, -1).join(', ')}${separator}${items[items.length - 1]}`;
 }

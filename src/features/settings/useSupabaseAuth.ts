@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Session, User } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 import { getSupabaseClient, supabaseRuntimeConfig } from '../../infrastructure/supabase/supabaseClient';
+import { useI18n } from '../../shared/i18n';
 
 interface AuthResult {
   ok: boolean;
@@ -8,6 +9,7 @@ interface AuthResult {
 }
 
 export function useSupabaseAuth() {
+  const { t } = useI18n();
   const supabase = useMemo(() => getSupabaseClient(), []);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(Boolean(supabase));
@@ -39,7 +41,7 @@ export function useSupabaseAuth() {
 
   const signIn = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
-      if (!supabase) return { ok: false, message: 'Supabase no configurado.' };
+      if (!supabase) return { ok: false, message: t('sync.supabaseNotConfigured') };
 
       const { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -47,14 +49,14 @@ export function useSupabaseAuth() {
       });
 
       if (error) return { ok: false, message: error.message };
-      return { ok: true, message: 'Sesión iniciada.' };
+      return { ok: true, message: t('sync.sessionStarted') };
     },
-    [supabase],
+    [supabase, t],
   );
 
   const signUp = useCallback(
     async (input: { email: string; password: string; fullName?: string }): Promise<AuthResult> => {
-      if (!supabase) return { ok: false, message: 'Supabase no configurado.' };
+      if (!supabase) return { ok: false, message: t('sync.supabaseNotConfigured') };
 
       const { error } = await supabase.auth.signUp({
         email: input.email.trim(),
@@ -67,18 +69,18 @@ export function useSupabaseAuth() {
       });
 
       if (error) return { ok: false, message: error.message };
-      return { ok: true, message: 'Registro creado. Si Supabase requiere confirmación, revisá tu email.' };
+      return { ok: true, message: t('sync.registerCreated') };
     },
-    [supabase],
+    [supabase, t],
   );
 
   const signOut = useCallback(async (): Promise<AuthResult> => {
-    if (!supabase) return { ok: false, message: 'Supabase no configurado.' };
+    if (!supabase) return { ok: false, message: t('sync.supabaseNotConfigured') };
 
     const { error } = await supabase.auth.signOut();
     if (error) return { ok: false, message: error.message };
-    return { ok: true, message: 'Sesión cerrada.' };
-  }, [supabase]);
+    return { ok: true, message: t('sync.sessionClosed') };
+  }, [supabase, t]);
 
   return {
     isConfigured: supabaseRuntimeConfig.isConfigured,
@@ -90,8 +92,4 @@ export function useSupabaseAuth() {
     signUp,
     signOut,
   };
-}
-
-export function labelForUser(user: User | null) {
-  return user?.email ?? 'No conectado';
 }

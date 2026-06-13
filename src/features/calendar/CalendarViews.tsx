@@ -1,6 +1,7 @@
 import type { Task } from '../../domain/tasks/task';
-import { addDays, addMonths, formatShortDate, parseInputDate, todayInputValue, ES_MONTH_FORMATTER } from '../../shared/date';
+import { addDays, addMonths, formatMonthTitle, formatShortDate, formatWeekdayShort, parseInputDate, todayInputValue } from '../../shared/date';
 import { Icon } from '../../shared/icons';
+import { useI18n } from '../../shared/i18n';
 import { TaskCard } from '../tasks/TaskCard';
 import { buildMonthGrid, tasksForDate, upcomingTasks } from './calendarUtils';
 
@@ -30,13 +31,14 @@ export function MonthView({
   onDeleteTask,
   onToggleTask,
 }: MonthViewProps) {
+  const { language, t } = useI18n();
   const days = buildMonthGrid(monthDate, tasks);
   const selectedTasks = tasksForDate(tasks, selectedDate);
 
   return (
     <section className="space-y-5">
       <CalendarToolbar
-        title={ES_MONTH_FORMATTER.format(monthDate)}
+        title={formatMonthTitle(monthDate, language)}
         onPrevious={() => onChangeMonth(addMonths(monthDate, -1))}
         onNext={() => onChangeMonth(addMonths(monthDate, 1))}
         onToday={() => {
@@ -48,7 +50,7 @@ export function MonthView({
 
       <div className="aura-card p-3">
         <div className="grid grid-cols-7 px-1 pb-2 text-center text-[11px] font-black uppercase tracking-wide text-cyan-700/70 dark:text-cyan-200/70">
-          {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day) => (
+          {weekHeaders(language).map((day) => (
             <span key={day}>{day}</span>
           ))}
         </div>
@@ -69,7 +71,7 @@ export function MonthView({
                       ? 'border-cyan-500/10 bg-white/60 text-slate-900 hover:border-cyan-300 hover:bg-cyan-50/80 dark:bg-slate-950/35 dark:text-slate-100 dark:hover:bg-cyan-500/10'
                       : 'border-transparent bg-slate-100/60 text-slate-400 dark:bg-slate-950/45 dark:text-slate-600'
                 }`}
-                aria-label={`Ver día ${day.value}`}
+                aria-label={t('calendar.viewDay', { date: day.value })}
               >
                 <span
                   className={`inline-grid h-7 w-7 place-items-center rounded-full text-xs font-black ${
@@ -94,8 +96,8 @@ export function MonthView({
       </div>
 
       <TaskList
-        title={formatShortDate(selectedDate)}
-        emptyText="No hay tareas para este día."
+        title={formatShortDate(selectedDate, language)}
+        emptyText={t('calendar.emptyDay')}
         tasks={selectedTasks}
         onCreate={() => onCreateTask(selectedDate)}
         onEditTask={onEditTask}
@@ -121,13 +123,14 @@ export function DayView({
   onDeleteTask,
   onToggleTask,
 }: DayViewProps) {
+  const { language, t } = useI18n();
   const selectedTasks = tasksForDate(tasks, selectedDate);
   const currentDate = parseInputDate(selectedDate);
 
   return (
     <section className="space-y-5">
       <CalendarToolbar
-        title={formatShortDate(selectedDate)}
+        title={formatShortDate(selectedDate, language)}
         onPrevious={() => onSelectDate(toDateValue(addDays(currentDate, -1)))}
         onNext={() => onSelectDate(toDateValue(addDays(currentDate, 1)))}
         onToday={() => onSelectDate(todayInputValue())}
@@ -152,7 +155,7 @@ export function DayView({
                 }`}
               >
                 <span className="block text-xs font-bold uppercase tracking-wide">
-                  {new Intl.DateTimeFormat('es-ES', { weekday: 'short' }).format(date)}
+                  {formatWeekdayShort(date, language)}
                 </span>
                 <span className="mt-1 block text-2xl font-black">{date.getDate()}</span>
               </button>
@@ -173,7 +176,7 @@ export function DayView({
             />
           ))
         ) : (
-          <EmptyState text="Tu día está libre. Aprovechá para planificar con intención." onCreate={() => onCreateTask(selectedDate)} />
+          <EmptyState text={t('calendar.freeDay')} onCreate={() => onCreateTask(selectedDate)} />
         )}
       </div>
     </section>
@@ -185,15 +188,16 @@ interface AgendaViewProps extends CalendarCallbacks {
 }
 
 export function AgendaView({ tasks, onCreateTask, onEditTask, onDeleteTask, onToggleTask }: AgendaViewProps) {
+  const { language, t } = useI18n();
   const agendaTasks = upcomingTasks(tasks);
 
   return (
     <section className="space-y-5">
       <div className="aura-card p-5">
-        <p className="aura-label">Agenda</p>
-        <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">Próximas tareas</h2>
+        <p className="aura-label">{t('agenda.title')}</p>
+        <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">{t('agenda.heading')}</h2>
         <p className="aura-muted mt-2 text-sm">
-          Acá ves lo que viene desde hoy en adelante, ordenado por fecha y hora.
+          {t('agenda.description')}
         </p>
       </div>
 
@@ -202,14 +206,14 @@ export function AgendaView({ tasks, onCreateTask, onEditTask, onDeleteTask, onTo
           {agendaTasks.map((task) => (
             <div key={task.id}>
               <p className="mb-2 ml-2 text-xs font-black uppercase tracking-[0.18em] text-cyan-700/70 dark:text-cyan-200/70">
-                {formatShortDate(task.date)}
+                {formatShortDate(task.date, language)}
               </p>
               <TaskCard task={task} onEdit={onEditTask} onDelete={onDeleteTask} onToggleCompleted={onToggleTask} />
             </div>
           ))}
         </div>
       ) : (
-        <EmptyState text="Todavía no hay tareas próximas." onCreate={() => onCreateTask()} />
+        <EmptyState text={t('agenda.empty')} onCreate={() => onCreateTask()} />
       )}
     </section>
   );
@@ -226,11 +230,13 @@ interface TaskListProps {
 }
 
 function TaskList({ title, emptyText, tasks, onCreate, onEditTask, onDeleteTask, onToggleTask }: TaskListProps) {
+  const { t } = useI18n();
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="aura-label">Día seleccionado</p>
+          <p className="aura-label">{t('calendar.selectedDay')}</p>
           <h2 className="mt-1 text-xl font-black capitalize text-slate-950 dark:text-white">{title}</h2>
         </div>
         <button
@@ -238,7 +244,7 @@ function TaskList({ title, emptyText, tasks, onCreate, onEditTask, onDeleteTask,
           onClick={onCreate}
           className="aura-primary text-sm"
         >
-          Crear
+          {t('common.create')}
         </button>
       </div>
       {tasks.length ? (
@@ -264,6 +270,8 @@ interface EmptyStateProps {
 }
 
 function EmptyState({ text, onCreate }: EmptyStateProps) {
+  const { t } = useI18n();
+
   return (
     <div className="aura-card p-6 text-center">
       <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-cyan-50 text-cyan-600 shadow-[0_0_24px_rgba(34,211,238,0.16)] dark:bg-cyan-500/10 dark:text-cyan-200">
@@ -275,7 +283,7 @@ function EmptyState({ text, onCreate }: EmptyStateProps) {
         onClick={onCreate}
         className="aura-primary mt-4 text-sm"
       >
-        Crear tarea
+        {t('common.createTask')}
       </button>
     </div>
   );
@@ -289,6 +297,8 @@ interface CalendarToolbarProps {
 }
 
 function CalendarToolbar({ title, onPrevious, onNext, onToday }: CalendarToolbarProps) {
+  const { t } = useI18n();
+
   return (
     <div className="aura-card p-4">
       <div className="flex items-center justify-between gap-3">
@@ -296,19 +306,19 @@ function CalendarToolbar({ title, onPrevious, onNext, onToday }: CalendarToolbar
           type="button"
           onClick={onPrevious}
           className="aura-icon-button"
-          aria-label="Anterior"
+          aria-label={t('common.previous')}
         >
           <Icon name="chevronLeft" className="h-6 w-6" />
         </button>
         <div className="text-center">
-          <p className="aura-label">Calendario</p>
+          <p className="aura-label">{t('nav.calendar')}</p>
           <h1 className="mt-1 text-xl font-black capitalize text-slate-950 dark:text-white">{title}</h1>
         </div>
         <button
           type="button"
           onClick={onNext}
           className="aura-icon-button"
-          aria-label="Siguiente"
+          aria-label={t('common.next')}
         >
           <Icon name="chevronRight" className="h-6 w-6" />
         </button>
@@ -318,7 +328,7 @@ function CalendarToolbar({ title, onPrevious, onNext, onToday }: CalendarToolbar
         onClick={onToday}
         className="aura-primary mt-4 w-full text-sm"
       >
-        Hoy
+        {t('nav.today')}
       </button>
     </div>
   );
@@ -326,4 +336,8 @@ function CalendarToolbar({ title, onPrevious, onNext, onToday }: CalendarToolbar
 
 function toDateValue(date: Date) {
   return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}-${`${date.getDate()}`.padStart(2, '0')}`;
+}
+
+function weekHeaders(language: 'es' | 'en') {
+  return language === 'en' ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'] : ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 }

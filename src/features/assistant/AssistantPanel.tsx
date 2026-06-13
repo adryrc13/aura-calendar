@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../shared/icons';
-import { parseSpanishTaskCommand, type ParsedTaskCommand } from './spanishTaskParser';
+import { useI18n } from '../../shared/i18n';
+import type { ParsedTaskCommand } from './spanishTaskParser';
+import { parseTaskCommand } from './taskCommandParser';
 import { useVoiceRecognition } from './useVoiceRecognition';
 
 interface AssistantPanelProps {
@@ -8,28 +10,29 @@ interface AssistantPanelProps {
 }
 
 export function AssistantPanel({ onCreateDraft }: AssistantPanelProps) {
+  const { language, t } = useI18n();
   const [textCommand, setTextCommand] = useState('');
   const [lastParsed, setLastParsed] = useState<ParsedTaskCommand | null>(null);
 
   function handleParse(command: string) {
     if (!command.trim()) return;
 
-    const parsed = parseSpanishTaskCommand(command);
+    const parsed = parseTaskCommand(command, language);
     setLastParsed(parsed);
     onCreateDraft(parsed);
   }
 
   const helperText = useMemo(() => {
     if (!lastParsed) {
-      return 'Escribí o dictá una frase: el parser es local, no usa IA externa y siempre abre el formulario para revisar.';
+      return t('assistant.initialHelper');
     }
 
     if (lastParsed.confidence === 'complete') {
       return lastParsed.summary;
     }
 
-    return `${lastParsed.summary} Confirmá: ${lastParsed.confirmationReasons.join(' ')}`;
-  }, [lastParsed]);
+    return `${lastParsed.summary} ${t('app.confirmPrefix', { reasons: lastParsed.confirmationReasons.join(' ') })}`;
+  }, [lastParsed, t]);
 
   return (
     <section className="space-y-5">
@@ -38,21 +41,14 @@ export function AssistantPanel({ onCreateDraft }: AssistantPanelProps) {
         <div className="relative flex items-start gap-4">
           <div className="aura-orb h-16 w-16" />
           <div className="min-w-0 flex-1">
-            <p className="aura-label">Asistente local</p>
-            <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">¿Qué necesitas planear hoy?</h2>
-            <p className="aura-muted mt-3 text-sm leading-relaxed">
-              No conversa y no usa IA externa. Solo toma una frase, la pasa por un parser local en español y prepara una tarea.
-            </p>
+            <p className="aura-label">{t('assistant.local')}</p>
+            <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">{t('assistant.title')}</h2>
+            <p className="aura-muted mt-3 text-sm leading-relaxed">{t('assistant.description')}</p>
           </div>
         </div>
         <div className="relative mt-4 rounded-3xl border border-cyan-500/15 bg-cyan-50/70 p-4 text-sm leading-relaxed text-slate-700 dark:bg-cyan-500/10 dark:text-cyan-100">
-          <p>
-            Puedes dictar de forma natural: ‘2 de agosto a las 18:00 dentista en Cádiz con alarma’.
-          </p>
-          <p className="mt-3">
-            Para más precisión usa el modo guiado: ‘Tarea: dentista en Cádiz. Fecha: 2 de agosto. Hora: 18:00.
-            Alarma: sí.’
-          </p>
+          <p>{t('assistant.naturalExample')}</p>
+          <p className="mt-3">{t('assistant.guidedExample')}</p>
         </div>
       </div>
 
@@ -60,14 +56,14 @@ export function AssistantPanel({ onCreateDraft }: AssistantPanelProps) {
 
       <div className="aura-card p-5">
         <label className="aura-label" htmlFor="assistant-command">
-          Entrada por texto
+          {t('assistant.textInput')}
         </label>
         <textarea
           id="assistant-command"
           className="aura-input mt-3 min-h-28 resize-none"
           value={textCommand}
           onChange={(event) => setTextCommand(event.target.value)}
-          placeholder="2 de agosto a las 18:00 dentista en Cádiz con alarma"
+          placeholder={t('assistant.placeholder')}
         />
         <button
           type="button"
@@ -75,65 +71,65 @@ export function AssistantPanel({ onCreateDraft }: AssistantPanelProps) {
           disabled={!textCommand.trim()}
           className="aura-primary mt-4 w-full"
         >
-          Interpretar y abrir formulario
+          {t('assistant.parseAndOpen')}
         </button>
         <p className="aura-muted mt-3 text-sm">{helperText}</p>
       </div>
 
       {lastParsed ? (
         <div className="aura-card p-5">
-          <p className="aura-label">Última interpretación</p>
+          <p className="aura-label">{t('assistant.lastParsed')}</p>
           {lastParsed.confirmationReasons.length ? (
-            <div className="aura-alert mt-3 p-3">
-              {lastParsed.confirmationReasons.join(' ')}
-            </div>
+            <div className="aura-alert mt-3 p-3">{lastParsed.confirmationReasons.join(' ')}</div>
           ) : null}
           <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+            <DetectedField label={t('assistant.detected.date')} value={lastParsed.detected.dateLabel ?? lastParsed.draft.date} />
             <div className="rounded-2xl border border-cyan-500/10 bg-white/60 p-3 dark:bg-slate-950/35">
-              <dt className="font-bold text-cyan-700/80 dark:text-cyan-200/80">Fecha</dt>
-              <dd className="mt-1 font-black text-slate-900 dark:text-white">
-                {lastParsed.detected.dateLabel ?? lastParsed.draft.date}
-              </dd>
-            </div>
-            <div className="rounded-2xl border border-cyan-500/10 bg-white/60 p-3 dark:bg-slate-950/35">
-              <dt className="font-bold text-cyan-700/80 dark:text-cyan-200/80">Hora</dt>
+              <dt className="font-bold text-cyan-700/80 dark:text-cyan-200/80">{t('assistant.detected.time')}</dt>
               <dd className="mt-1 font-black text-slate-900 dark:text-white">{lastParsed.draft.time}</dd>
               {lastParsed.detected.suggestedTimes?.length ? (
                 <dd className="mt-1 text-xs font-bold text-amber-700 dark:text-amber-200">
-                  Opciones: {lastParsed.detected.suggestedTimes.join(' o ')}
+                  {t('assistant.options', { values: lastParsed.detected.suggestedTimes.join(language === 'en' ? ' or ' : ' o ') })}
                 </dd>
               ) : null}
             </div>
-            <div className="col-span-2 rounded-2xl border border-cyan-500/10 bg-white/60 p-3 dark:bg-slate-950/35">
-              <dt className="font-bold text-cyan-700/80 dark:text-cyan-200/80">Título</dt>
-              <dd className="mt-1 font-black text-slate-900 dark:text-white">{lastParsed.draft.title || 'Pendiente'}</dd>
-            </div>
-            <div className="rounded-2xl border border-cyan-500/10 bg-white/60 p-3 dark:bg-slate-950/35">
-              <dt className="font-bold text-cyan-700/80 dark:text-cyan-200/80">Alarma</dt>
-              <dd className="mt-1 font-black text-slate-900 dark:text-white">
-                {lastParsed.draft.reminderEnabled ? 'Activada' : 'Desactivada'}
-              </dd>
-            </div>
-            <div className="rounded-2xl border border-cyan-500/10 bg-white/60 p-3 dark:bg-slate-950/35">
-              <dt className="font-bold text-cyan-700/80 dark:text-cyan-200/80">Sonido</dt>
-              <dd className="mt-1 font-black text-slate-900 dark:text-white">
-                {!lastParsed.draft.reminderEnabled
-                  ? 'No aplica'
+            <DetectedField
+              className="col-span-2"
+              label={t('assistant.detected.title')}
+              value={lastParsed.draft.title || t('assistant.pendingTitle')}
+            />
+            <DetectedField
+              label={t('assistant.detected.alarm')}
+              value={lastParsed.draft.reminderEnabled ? t('common.enabled') : t('common.disabled')}
+            />
+            <DetectedField
+              label={t('assistant.detected.sound')}
+              value={
+                !lastParsed.draft.reminderEnabled
+                  ? t('common.notApplicable')
                   : lastParsed.draft.reminderSilent
-                    ? 'Silencioso'
-                    : 'Activado'}
-              </dd>
-            </div>
-            <div className="col-span-2 rounded-2xl border border-cyan-500/10 bg-white/60 p-3 dark:bg-slate-950/35">
-              <dt className="font-bold text-cyan-700/80 dark:text-cyan-200/80">Minutos antes</dt>
-              <dd className="mt-1 font-black text-slate-900 dark:text-white">
-                {lastParsed.draft.reminderEnabled ? lastParsed.draft.reminderMinutesBefore : 'Sin recordatorio'}
-              </dd>
-            </div>
+                    ? t('assistant.soundSilent')
+                    : t('assistant.soundOn')
+              }
+            />
+            <DetectedField
+              className="col-span-2"
+              label={t('assistant.detected.minutesBefore')}
+              value={lastParsed.draft.reminderEnabled ? `${lastParsed.draft.reminderMinutesBefore}` : t('assistant.noReminder')}
+            />
           </dl>
         </div>
       ) : null}
     </section>
+  );
+}
+
+function DetectedField({ label, value, className = '' }: { label: string; value: string; className?: string }) {
+  return (
+    <div className={`${className} rounded-2xl border border-cyan-500/10 bg-white/60 p-3 dark:bg-slate-950/35`}>
+      <dt className="font-bold text-cyan-700/80 dark:text-cyan-200/80">{label}</dt>
+      <dd className="mt-1 font-black text-slate-900 dark:text-white">{value}</dd>
+    </div>
   );
 }
 
@@ -142,9 +138,14 @@ interface VoiceCommandButtonProps {
 }
 
 export function VoiceCommandButton({ onTranscript }: VoiceCommandButtonProps) {
+  const { t } = useI18n();
   const [isListening, setIsListening] = useState(false);
-  const [status, setStatus] = useState('Listo para escuchar si tu navegador soporta Web Speech API.');
+  const [status, setStatus] = useState(t('assistant.listenReady'));
   const { startListening } = useVoiceRecognition({ onTranscript });
+
+  useEffect(() => {
+    setStatus(t('assistant.listenReady'));
+  }, [t]);
 
   return (
     <div className="aura-card p-5">
@@ -163,7 +164,7 @@ export function VoiceCommandButton({ onTranscript }: VoiceCommandButtonProps) {
         <span className="grid h-12 w-12 place-items-center rounded-full border border-white/35 bg-white/10">
           <Icon name="mic" className="h-7 w-7" />
         </span>
-        {isListening ? 'Escuchando' : 'Usar micrófono'}
+        {isListening ? t('assistant.listening') : t('assistant.useMicrophone')}
       </button>
       <p className="aura-muted mt-3 text-sm">{status}</p>
     </div>

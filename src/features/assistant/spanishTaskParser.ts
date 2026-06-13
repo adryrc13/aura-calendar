@@ -22,7 +22,7 @@ export interface ParsedTaskCommand {
   };
 }
 
-interface ParseOptions {
+export interface ParseOptions {
   referenceDate?: Date;
 }
 

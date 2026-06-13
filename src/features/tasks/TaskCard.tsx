@@ -2,6 +2,7 @@ import type { Task } from '../../domain/tasks/task';
 import { TASK_COLORS } from '../../domain/tasks/task';
 import { recurrenceLabel } from '../../domain/tasks/recurrence';
 import { Icon } from '../../shared/icons';
+import { useI18n } from '../../shared/i18n';
 import { AttachmentList } from './TaskAttachments';
 
 interface TaskCardProps {
@@ -12,6 +13,7 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onEdit, onDelete, onToggleCompleted }: TaskCardProps) {
+  const { language, t } = useI18n();
   const color = TASK_COLORS.find((item) => item.value === task.color) ?? TASK_COLORS[0];
 
   return (
@@ -25,7 +27,7 @@ export function TaskCard({ task, onEdit, onDelete, onToggleCompleted }: TaskCard
               ? 'border-cyan-400 bg-cyan-500 text-white shadow-[0_0_18px_rgba(34,211,238,0.45)]'
               : 'border-cyan-400/70 text-transparent hover:border-cyan-300 hover:text-cyan-400 dark:border-cyan-300/70'
           }`}
-          aria-label={task.completed ? 'Marcar como pendiente' : 'Marcar como completada'}
+          aria-label={task.completed ? t('task.markPending') : t('task.markCompleted')}
         >
           <Icon name="check" className="h-5 w-5" />
         </button>
@@ -49,7 +51,7 @@ export function TaskCard({ task, onEdit, onDelete, onToggleCompleted }: TaskCard
               className="shrink-0 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide shadow-sm"
               style={{ background: color.swatch, color: color.textColor }}
             >
-              {color.label}
+              {t(`color.${color.value}`)}
             </span>
           </div>
 
@@ -60,15 +62,15 @@ export function TaskCard({ task, onEdit, onDelete, onToggleCompleted }: TaskCard
           <div className="aura-muted mt-4 flex flex-wrap items-center gap-2 text-xs font-semibold">
             {task.recurrenceType && task.recurrenceType !== 'none' ? (
               <span className="aura-chip">
-                {recurrenceLabel(task)}
+                {recurrenceLabel(task, t, language)}
               </span>
             ) : null}
             {task.reminderEnabled ? (
               <span className="aura-chip">
-                Alarma {task.reminderMinutesBefore} min antes{task.reminderSilent ? ' · sin sonido' : ''}
+                {t('task.alarmBefore', { minutes: task.reminderMinutesBefore, silent: task.reminderSilent })}
               </span>
             ) : (
-              <span className="rounded-full bg-slate-100/80 px-3 py-1 dark:bg-slate-800/70">Sin alarma</span>
+              <span className="rounded-full bg-slate-100/80 px-3 py-1 dark:bg-slate-800/70">{t('task.noAlarm')}</span>
             )}
           </div>
 
@@ -80,14 +82,14 @@ export function TaskCard({ task, onEdit, onDelete, onToggleCompleted }: TaskCard
               onClick={() => onEdit(task)}
               className="aura-secondary px-4 py-2 text-sm"
             >
-              Editar
+              {t('common.edit')}
             </button>
             <button
               type="button"
               onClick={() => onDelete(task)}
               className="aura-danger px-4 py-2 text-sm"
             >
-              Eliminar
+              {t('common.delete')}
             </button>
           </div>
         </div>

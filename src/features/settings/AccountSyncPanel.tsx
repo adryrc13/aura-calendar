@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Icon } from '../../shared/icons';
-import { supabaseConfigurationLabel } from '../../infrastructure/supabase/supabaseClient';
+import { useI18n } from '../../shared/i18n';
 import {
   activateRemoteTaskSync,
   ensureDefaultRemoteCalendar,
@@ -13,11 +13,12 @@ import {
   subscribeTaskRepositoryModeChange,
   type TaskRepositoryMode,
 } from '../../infrastructure/tasks/taskRepositoryProvider';
-import { labelForUser, useSupabaseAuth } from './useSupabaseAuth';
+import { useSupabaseAuth } from './useSupabaseAuth';
 
 type AuthMode = 'login' | 'register';
 
 export function AccountSyncPanel() {
+  const { t } = useI18n();
   const { isConfigured, missingKeys, isLoadingSession, user, signIn, signUp, signOut } = useSupabaseAuth();
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
   const [repositoryMode, setRepositoryMode] = useState<TaskRepositoryMode>(() => getTaskRepositoryMode());
@@ -41,12 +42,12 @@ export function AccountSyncPanel() {
     setMigrationSummary(null);
 
     if (!isConfigured) {
-      setStatusMessage(`Supabase no configurado. Faltan: ${missingKeys.join(', ')}.`);
+      setStatusMessage(t('sync.missingSupabaseShort', { keys: missingKeys.join(', ') }));
       return;
     }
 
     if (!user) {
-      setStatusMessage('Iniciá sesión antes de activar la sincronización remota.');
+      setStatusMessage(t('sync.loginRequiredRemote'));
       return;
     }
 
@@ -55,10 +56,10 @@ export function AccountSyncPanel() {
     try {
       const calendar = await activateRemoteTaskSync();
       setTaskRepositoryMode('remote');
-      setStatusMessage(`Sincronización remota activa. Calendario remoto: ${calendar.name}.`);
+      setStatusMessage(t('sync.remoteActivated', { name: calendar.name }));
     } catch (error) {
       setTaskRepositoryMode('local');
-      setStatusMessage(`${errorMessage(error)} Volvimos a modo local para no perder datos.`);
+      setStatusMessage(t('sync.remoteFallbackLocal', { error: errorMessage(error) }));
     } finally {
       setIsSyncActionRunning(false);
     }
@@ -68,12 +69,12 @@ export function AccountSyncPanel() {
     setMigrationSummary(null);
 
     if (!isConfigured) {
-      setStatusMessage(`Supabase no configurado. Faltan: ${missingKeys.join(', ')}.`);
+      setStatusMessage(t('sync.missingSupabaseShort', { keys: missingKeys.join(', ') }));
       return;
     }
 
     if (!user) {
-      setStatusMessage('Iniciá sesión antes de migrar tareas locales a Supabase.');
+      setStatusMessage(t('sync.loginRequiredMigration'));
       return;
     }
 
@@ -83,7 +84,7 @@ export function AccountSyncPanel() {
       await ensureDefaultRemoteCalendar();
       const summary = await migrateLocalTasksToSupabase();
       setMigrationSummary(summary);
-      setStatusMessage('Migración local → Supabase terminada. Las tareas locales siguen en este dispositivo.');
+      setStatusMessage(t('sync.migrationDone'));
       if (repositoryMode === 'remote') {
         setTaskRepositoryMode('remote');
       }
@@ -96,25 +97,25 @@ export function AccountSyncPanel() {
 
   function handleUseLocalOnly() {
     setTaskRepositoryMode('local');
-    setStatusMessage('Modo local activo. Tus tareas se guardan solo en este dispositivo.');
+    setStatusMessage(t('sync.localOnlyActive'));
   }
 
   const remoteAvailable = isConfigured && Boolean(user);
-  const currentStateLabel = repositoryMode === 'remote' ? 'Sincronización remota activa' : 'Modo local';
+  const currentStateLabel = repositoryMode === 'remote' ? t('sync.remoteActive') : t('sync.localMode');
+  const supabaseLabel = remoteAvailable
+    ? t('sync.remoteAvailable')
+    : isConfigured
+      ? t('sync.supabaseConfigured')
+      : t('sync.supabaseNotConfigured');
 
   return (
     <>
       <div className="aura-card p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="aura-label">Cuenta y sincronización</p>
-            <h3 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
-              {currentStateLabel}
-            </h3>
-            <p className="aura-muted mt-3 text-sm leading-relaxed">
-              Dexie sigue disponible como respaldo local. Si activás Supabase, las tareas se leen y escriben contra Database;
-              si algo falla, podés volver a usar solo este dispositivo.
-            </p>
+            <p className="aura-label">{t('sync.title')}</p>
+            <h3 className="mt-1 text-xl font-black text-slate-950 dark:text-white">{currentStateLabel}</h3>
+            <p className="aura-muted mt-3 text-sm leading-relaxed">{t('sync.description')}</p>
           </div>
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-cyan-50 text-cyan-700 shadow-[0_0_22px_rgba(34,211,238,0.18)] dark:bg-cyan-500/10 dark:text-cyan-200">
             <Icon name="settings" className="h-6 w-6" />
@@ -122,78 +123,42 @@ export function AccountSyncPanel() {
         </div>
 
         <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
-          <StatusChip label="Estado" value={currentStateLabel} tone={repositoryMode === 'remote' ? 'ok' : 'neutral'} />
-          <StatusChip
-            label="Supabase"
-            value={remoteAvailable ? 'Sincronización remota disponible' : supabaseConfigurationLabel()}
-            tone={remoteAvailable ? 'ok' : isConfigured ? 'neutral' : 'warn'}
-          />
-          <StatusChip label="Usuario" value={isLoadingSession ? 'Comprobando…' : labelForUser(user)} tone={user ? 'ok' : 'neutral'} />
+          <StatusChip label={t('sync.status')} value={currentStateLabel} tone={repositoryMode === 'remote' ? 'ok' : 'neutral'} />
+          <StatusChip label={t('sync.supabase')} value={supabaseLabel} tone={remoteAvailable ? 'ok' : isConfigured ? 'neutral' : 'warn'} />
+          <StatusChip label={t('sync.user')} value={isLoadingSession ? t('sync.checking') : user?.email ?? t('sync.notConnected')} tone={user ? 'ok' : 'neutral'} />
         </div>
 
         {!isConfigured ? (
           <p className="mt-4 rounded-2xl border border-amber-300/50 bg-amber-50/90 p-3 text-xs font-bold text-amber-900 dark:bg-amber-400/10 dark:text-amber-100">
-            Supabase no configurado. Faltan: {missingKeys.join(', ')}. La app sigue funcionando en modo local.
+            {t('sync.missingSupabase', { keys: missingKeys.join(', ') })}
           </p>
         ) : null}
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <button
-            type="button"
-            className="aura-secondary"
-            onClick={() => setAuthMode('login')}
-            disabled={!isConfigured}
-          >
-            Iniciar sesión
+          <button type="button" className="aura-secondary" onClick={() => setAuthMode('login')} disabled={!isConfigured}>
+            {t('sync.signIn')}
           </button>
-          <button
-            type="button"
-            className="aura-primary"
-            onClick={() => setAuthMode('register')}
-            disabled={!isConfigured}
-          >
-            Registrarse
+          <button type="button" className="aura-primary" onClick={() => setAuthMode('register')} disabled={!isConfigured}>
+            {t('sync.register')}
           </button>
-          <button
-            type="button"
-            className="aura-danger"
-            onClick={handleSignOut}
-            disabled={!isConfigured || !user}
-          >
-            Cerrar sesión
+          <button type="button" className="aura-danger" onClick={handleSignOut} disabled={!isConfigured || !user}>
+            {t('sync.signOut')}
           </button>
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <button
-            type="button"
-            className="aura-primary"
-            onClick={handleActivateRemoteSync}
-            disabled={!remoteAvailable || isSyncActionRunning}
-          >
-            Activar sincronización remota
+          <button type="button" className="aura-primary" onClick={handleActivateRemoteSync} disabled={!remoteAvailable || isSyncActionRunning}>
+            {t('sync.enableRemote')}
           </button>
-          <button
-            type="button"
-            className="aura-secondary"
-            onClick={handleMigrateLocalTasks}
-            disabled={!remoteAvailable || isSyncActionRunning}
-          >
-            Migrar tareas locales a Supabase
+          <button type="button" className="aura-secondary" onClick={handleMigrateLocalTasks} disabled={!remoteAvailable || isSyncActionRunning}>
+            {t('sync.migrateLocal')}
           </button>
-          <button
-            type="button"
-            className="aura-secondary"
-            onClick={handleUseLocalOnly}
-            disabled={repositoryMode === 'local' || isSyncActionRunning}
-          >
-            Usar solo este dispositivo
+          <button type="button" className="aura-secondary" onClick={handleUseLocalOnly} disabled={repositoryMode === 'local' || isSyncActionRunning}>
+            {t('sync.useLocalOnly')}
           </button>
         </div>
 
-        <p className="aura-muted mt-3 text-xs font-semibold">
-          Los adjuntos locales no se suben todavía. Los adjuntos se sincronizarán en la Fase 4C.
-        </p>
+        <p className="aura-muted mt-3 text-xs font-semibold">{t('sync.localAttachmentsNotUploaded')}</p>
 
         {statusMessage ? <p className="aura-muted mt-3 text-sm font-semibold">{statusMessage}</p> : null}
 
@@ -233,13 +198,15 @@ function StatusChip({ label, value, tone }: { label: string; value: string; tone
 }
 
 function MigrationSummary({ summary }: { summary: TaskMigrationSummary }) {
+  const { t } = useI18n();
+
   return (
     <div className="mt-4 rounded-2xl border border-cyan-300/40 bg-cyan-50/70 p-3 text-xs font-bold text-cyan-950 dark:bg-cyan-500/10 dark:text-cyan-100">
-      <p>Tareas encontradas: {summary.tasksFound}</p>
-      <p>Tareas subidas: {summary.tasksUploaded}</p>
-      <p>Tareas omitidas por duplicado: {summary.tasksSkipped}</p>
-      <p>Errores: {summary.errors.length}</p>
-      {summary.tasksWithLocalAttachments ? <p>Tareas con adjuntos locales: {summary.tasksWithLocalAttachments}</p> : null}
+      <p>{t('sync.migration.found', { count: summary.tasksFound })}</p>
+      <p>{t('sync.migration.uploaded', { count: summary.tasksUploaded })}</p>
+      <p>{t('sync.migration.skipped', { count: summary.tasksSkipped })}</p>
+      <p>{t('sync.migration.errors', { count: summary.errors.length })}</p>
+      {summary.tasksWithLocalAttachments ? <p>{t('sync.migration.withAttachments', { count: summary.tasksWithLocalAttachments })}</p> : null}
       <p>{summary.note}</p>
       {summary.errors.length ? (
         <ul className="mt-2 list-disc space-y-1 pl-4">
@@ -261,6 +228,7 @@ function AuthDialog({
   onClose: () => void;
   onSubmit: (input: { email: string; password: string; fullName?: string }) => Promise<{ ok: boolean; message: string }>;
 }) {
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -281,12 +249,12 @@ function AuthDialog({
       <section className="aura-panel w-full max-w-md p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="aura-label">Supabase Auth</p>
+            <p className="aura-label">{t('sync.authTitle')}</p>
             <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">
-              {isRegister ? 'Crear cuenta' : 'Iniciar sesión'}
+              {isRegister ? t('sync.createAccount') : t('sync.signIn')}
             </h2>
           </div>
-          <button type="button" onClick={onClose} className="aura-icon-button" aria-label="Cerrar acceso">
+          <button type="button" onClick={onClose} className="aura-icon-button" aria-label={t('sync.closeAccess')}>
             <Icon name="close" className="h-6 w-6" />
           </button>
         </div>
@@ -295,21 +263,21 @@ function AuthDialog({
           {isRegister ? (
             <div>
               <label className="aura-label" htmlFor="supabase-full-name">
-                Nombre opcional
+                {t('sync.fullNameOptional')}
               </label>
               <input
                 id="supabase-full-name"
                 className="aura-input mt-2"
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
-                placeholder="Tu nombre"
+                placeholder={t('sync.fullNamePlaceholder')}
               />
             </div>
           ) : null}
 
           <div>
             <label className="aura-label" htmlFor="supabase-email">
-              Email
+              {t('sync.email')}
             </label>
             <input
               id="supabase-email"
@@ -317,14 +285,14 @@ function AuthDialog({
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="tu@email.com"
+              placeholder={t('sync.emailPlaceholder')}
               required
             />
           </div>
 
           <div>
             <label className="aura-label" htmlFor="supabase-password">
-              Contraseña
+              {t('sync.password')}
             </label>
             <input
               id="supabase-password"
@@ -333,7 +301,7 @@ function AuthDialog({
               minLength={6}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="Mínimo 6 caracteres"
+              placeholder={t('sync.passwordPlaceholder')}
               required
             />
           </div>
@@ -342,10 +310,10 @@ function AuthDialog({
 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="aura-secondary min-w-28">
-              Cancelar
+              {t('common.cancel')}
             </button>
             <button type="submit" disabled={isSubmitting} className="aura-primary flex-1">
-              {isSubmitting ? 'Procesando…' : isRegister ? 'Registrarse' : 'Entrar'}
+              {isSubmitting ? t('common.processing') : isRegister ? t('sync.register') : t('sync.enter')}
             </button>
           </div>
         </form>

@@ -1,3 +1,5 @@
+import { speechLanguageFor, useI18n } from '../../shared/i18n';
+
 type VoiceStatus = 'idle' | 'listening' | 'unsupported' | 'error';
 
 interface UseVoiceRecognitionParams {
@@ -5,11 +7,13 @@ interface UseVoiceRecognitionParams {
 }
 
 export function useVoiceRecognition({ onTranscript }: UseVoiceRecognitionParams) {
+  const { language, t } = useI18n();
+
   async function startListening(onStatus?: (message: string, status: VoiceStatus) => void) {
     const SpeechRecognitionConstructor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
 
     if (!SpeechRecognitionConstructor) {
-      onStatus?.('Web Speech API no está disponible. Usá la entrada por texto.', 'unsupported');
+      onStatus?.(t('assistant.unsupported'), 'unsupported');
       return;
     }
 
@@ -21,10 +25,10 @@ export function useVoiceRecognition({ onTranscript }: UseVoiceRecognitionParams)
 
       const recognition = new SpeechRecognitionConstructor();
       let hasResult = false;
-      recognition.lang = 'es-ES';
+      recognition.lang = speechLanguageFor(language);
       recognition.interimResults = false;
       recognition.continuous = false;
-      onStatus?.('Escuchando… hablá claro y corto.', 'listening');
+      onStatus?.(t('assistant.listeningStatus'), 'listening');
 
       recognition.onresult = (event) => {
         hasResult = true;
@@ -33,7 +37,7 @@ export function useVoiceRecognition({ onTranscript }: UseVoiceRecognitionParams)
           .filter(Boolean)
           .join(' ');
 
-        onStatus?.(transcript ? `Detecté: “${transcript}”` : 'No detecté texto. Probá otra vez.', 'idle');
+        onStatus?.(transcript ? t('assistant.detectedTranscript', { transcript }) : t('assistant.noTranscript'), 'idle');
 
         if (transcript) {
           onTranscript(transcript);
@@ -41,18 +45,18 @@ export function useVoiceRecognition({ onTranscript }: UseVoiceRecognitionParams)
       };
 
       recognition.onerror = (event) => {
-        onStatus?.(`No pude escuchar bien: ${event.error}. Podés escribir la orden.`, 'error');
+        onStatus?.(t('assistant.listenError', { error: event.error }), 'error');
       };
 
       recognition.onend = () => {
         if (!hasResult) {
-          onStatus?.('Escucha finalizada.', 'idle');
+          onStatus?.(t('assistant.listenEnd'), 'idle');
         }
       };
 
       recognition.start();
-    } catch (error) {
-      onStatus?.('No se pudo acceder al micrófono. Revisá permisos o usá la entrada por texto.', 'error');
+    } catch {
+      onStatus?.(t('assistant.microphoneError'), 'error');
     }
   }
 

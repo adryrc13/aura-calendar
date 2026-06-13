@@ -1,3 +1,5 @@
+import { createTranslator, type TranslationParams } from '../../shared/i18n';
+
 export type TaskAttachmentType = 'image' | 'pdf' | 'audio' | 'video' | 'document' | 'link' | 'note';
 
 export interface TaskAttachment {
@@ -26,6 +28,8 @@ export interface AttachmentFileLike {
 }
 
 export const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
+
+type Translate = (key: string, params?: TranslationParams) => string;
 
 const DOCUMENT_MIME_TYPES = new Set([
   'text/plain',
@@ -59,11 +63,14 @@ export function detectAttachmentFileType(file: AttachmentFileLike): Exclude<Task
   return undefined;
 }
 
-export function validateAttachmentFile(file: AttachmentFileLike) {
+export function validateAttachmentFile(file: AttachmentFileLike, translate: Translate = createTranslator('es')) {
   if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
     return {
       ok: false as const,
-      error: `“${file.name}” supera el límite de ${formatAttachmentSize(MAX_ATTACHMENT_SIZE_BYTES)}.`,
+      error: translate('attachments.error.sizeLimit', {
+        name: file.name,
+        maxSize: formatAttachmentSize(MAX_ATTACHMENT_SIZE_BYTES),
+      }),
     };
   }
 
@@ -72,15 +79,21 @@ export function validateAttachmentFile(file: AttachmentFileLike) {
   if (!type) {
     return {
       ok: false as const,
-      error: `“${file.name}” tiene un tipo de archivo no soportado en esta fase.`,
+      error: translate('attachments.error.unsupported', { name: file.name }),
     };
   }
 
   return { ok: true as const, type };
 }
 
-export function createFileAttachment(file: File, id: string, taskId = '', now = new Date().toISOString()): TaskAttachment {
-  const validation = validateAttachmentFile(file);
+export function createFileAttachment(
+  file: File,
+  id: string,
+  taskId = '',
+  now = new Date().toISOString(),
+  translate: Translate = createTranslator('es'),
+): TaskAttachment {
+  const validation = validateAttachmentFile(file, translate);
 
   if (!validation.ok) {
     throw new Error(validation.error);
@@ -104,8 +117,9 @@ export function createLinkAttachment(
   id: string,
   taskId = '',
   now = new Date().toISOString(),
+  translate: Translate = createTranslator('es'),
 ): TaskAttachment {
-  const url = normalizeExternalUrl(input.url);
+  const url = normalizeExternalUrl(input.url, translate);
   const name = input.title?.trim() || hostnameFor(url) || url;
   const text = input.description?.trim() || undefined;
 
@@ -121,11 +135,17 @@ export function createLinkAttachment(
   };
 }
 
-export function createNoteAttachment(text: string, id: string, taskId = '', now = new Date().toISOString()): TaskAttachment {
+export function createNoteAttachment(
+  text: string,
+  id: string,
+  taskId = '',
+  now = new Date().toISOString(),
+  translate: Translate = createTranslator('es'),
+): TaskAttachment {
   const normalized = text.trim();
 
   if (!normalized) {
-    throw new Error('La nota no puede estar vacía.');
+    throw new Error(translate('attachments.error.emptyNote'));
   }
 
   return {
@@ -177,7 +197,7 @@ export function hasLocalAttachmentBlob(attachment: Pick<TaskAttachment, 'data' |
 }
 
 export function safeAttachmentFileName(name: string) {
-  return (name.trim() || 'adjunto-local').replace(/[\\/:*?"<>|]+/g, '-');
+  return (name.trim() || createTranslator('es')('attachments.defaultLocalName')).replace(/[\\/:*?"<>|]+/g, '-');
 }
 
 export function removeAttachmentById(attachments: TaskAttachment[] | undefined, id: string) {
@@ -191,31 +211,21 @@ export function formatAttachmentSize(size?: number) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function labelForAttachmentType(type: TaskAttachmentType) {
-  const labels: Record<TaskAttachmentType, string> = {
-    image: 'Imagen',
-    pdf: 'PDF',
-    audio: 'Audio',
-    video: 'Vídeo',
-    document: 'Documento',
-    link: 'Link',
-    note: 'Nota',
-  };
-
-  return labels[type];
+export function labelForAttachmentType(type: TaskAttachmentType, translate: Translate = createTranslator('es')) {
+  return translate(`attachments.type.${type}`);
 }
 
-function normalizeExternalUrl(rawUrl: string) {
+function normalizeExternalUrl(rawUrl: string, translate: Translate) {
   const value = rawUrl.trim();
 
   if (!value) {
-    throw new Error('El link necesita una URL.');
+    throw new Error(translate('attachments.error.emptyLink'));
   }
 
   const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
 
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new Error('Solo se aceptan links http o https.');
+    throw new Error(translate('attachments.error.invalidLinkProtocol'));
   }
 
   return url.toString();

@@ -15,6 +15,7 @@ import {
 } from '../../domain/tasks/attachment';
 import { createId } from '../../shared/id';
 import { Icon, type IconName } from '../../shared/icons';
+import { useI18n, type TranslationParams } from '../../shared/i18n';
 
 interface AttachmentEditorProps {
   attachments: TaskAttachment[];
@@ -24,6 +25,7 @@ interface AttachmentEditorProps {
 type AttachmentMode = 'link' | 'note' | null;
 
 export function AttachmentEditor({ attachments, onChange }: AttachmentEditorProps) {
+  const { t } = useI18n();
   const fileInputId = useId();
   const [mode, setMode] = useState<AttachmentMode>(null);
   const [error, setError] = useState('');
@@ -43,9 +45,9 @@ export function AttachmentEditor({ attachments, onChange }: AttachmentEditorProp
 
     for (const file of files) {
       try {
-        nextAttachments.push(createFileAttachment(file, createId()));
+        nextAttachments.push(createFileAttachment(file, createId(), '', new Date().toISOString(), t));
       } catch (caughtError) {
-        errors.push(caughtError instanceof Error ? caughtError.message : 'No se pudo adjuntar el archivo.');
+        errors.push(caughtError instanceof Error ? caughtError.message : t('attachments.addFileError'));
       }
     }
 
@@ -62,7 +64,7 @@ export function AttachmentEditor({ attachments, onChange }: AttachmentEditorProp
         url: linkUrl,
         title: linkTitle,
         description: linkDescription,
-      }, createId());
+      }, createId(), '', new Date().toISOString(), t);
 
       onChange([...attachments, attachment]);
       setLinkUrl('');
@@ -71,19 +73,19 @@ export function AttachmentEditor({ attachments, onChange }: AttachmentEditorProp
       setMode(null);
       setError('');
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'No se pudo agregar el link.');
+      setError(caughtError instanceof Error ? caughtError.message : t('attachments.addLinkError'));
     }
   }
 
   function handleAddNote() {
     try {
-      const attachment = createNoteAttachment(noteText, createId());
+      const attachment = createNoteAttachment(noteText, createId(), '', new Date().toISOString(), t);
       onChange([...attachments, attachment]);
       setNoteText('');
       setMode(null);
       setError('');
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'No se pudo agregar la nota.');
+      setError(caughtError instanceof Error ? caughtError.message : t('attachments.addNoteError'));
     }
   }
 
@@ -95,20 +97,22 @@ export function AttachmentEditor({ attachments, onChange }: AttachmentEditorProp
             <Icon name="attachment" className="h-6 w-6" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="aura-label">Adjuntos</p>
-            <p className="aura-muted mt-1 text-xs">Archivos locales, links y notas. Máximo {formatAttachmentSize(MAX_ATTACHMENT_SIZE_BYTES)} por archivo.</p>
+            <p className="aura-label">{t('attachments.title')}</p>
+            <p className="aura-muted mt-1 text-xs">
+              {t('attachments.description', { maxSize: formatAttachmentSize(MAX_ATTACHMENT_SIZE_BYTES) })}
+            </p>
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-2">
           <label className="aura-secondary cursor-pointer px-3 py-2 text-center text-sm" htmlFor={fileInputId}>
-            Archivo
+            {t('attachments.file')}
           </label>
           <button type="button" className="aura-secondary px-3 py-2 text-sm" onClick={() => setMode(mode === 'link' ? null : 'link')}>
-            Link
+            {t('attachments.link')}
           </button>
           <button type="button" className="aura-secondary px-3 py-2 text-sm" onClick={() => setMode(mode === 'note' ? null : 'note')}>
-            Nota
+            {t('attachments.note')}
           </button>
         </div>
 
@@ -123,16 +127,16 @@ export function AttachmentEditor({ attachments, onChange }: AttachmentEditorProp
 
         {mode === 'link' ? (
           <div className="mt-4 space-y-3">
-            <input className="aura-input" value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} placeholder="https://ejemplo.com" />
-            <input className="aura-input" value={linkTitle} onChange={(event) => setLinkTitle(event.target.value)} placeholder="Título opcional" />
+            <input className="aura-input" value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} placeholder={t('attachments.linkUrlPlaceholder')} />
+            <input className="aura-input" value={linkTitle} onChange={(event) => setLinkTitle(event.target.value)} placeholder={t('attachments.linkTitlePlaceholder')} />
             <textarea
               className="aura-input min-h-20 resize-none"
               value={linkDescription}
               onChange={(event) => setLinkDescription(event.target.value)}
-              placeholder="Descripción opcional"
+              placeholder={t('attachments.linkDescriptionPlaceholder')}
             />
             <button type="button" className="aura-primary w-full text-sm" onClick={handleAddLink}>
-              Añadir link
+              {t('attachments.addLink')}
             </button>
           </div>
         ) : null}
@@ -143,10 +147,10 @@ export function AttachmentEditor({ attachments, onChange }: AttachmentEditorProp
               className="aura-input min-h-24 resize-none"
               value={noteText}
               onChange={(event) => setNoteText(event.target.value)}
-              placeholder="Escribí una nota para esta tarea"
+              placeholder={t('attachments.notePlaceholder')}
             />
             <button type="button" className="aura-primary w-full text-sm" onClick={handleAddNote}>
-              Añadir nota
+              {t('attachments.addNote')}
             </button>
           </div>
         ) : null}
@@ -156,7 +160,7 @@ export function AttachmentEditor({ attachments, onChange }: AttachmentEditorProp
 
       <AttachmentList
         attachments={attachments}
-        emptyText="Todavía no hay adjuntos."
+        emptyText={t('attachments.empty')}
         onRemove={(id) => onChange(removeAttachmentById(attachments, id))}
       />
     </section>
@@ -185,25 +189,26 @@ export function AttachmentList({ attachments, emptyText, compact = false, onRemo
 }
 
 function AttachmentCard({ attachment, compact, onRemove }: { attachment: TaskAttachment; compact: boolean; onRemove?: (id: string) => void }) {
+  const { t } = useI18n();
   const objectUrl = useObjectUrl(attachment);
   const icon = iconForAttachmentType(attachment.type);
   const [actionError, setActionError] = useState('');
 
   function handleOpen() {
     try {
-      openLocalAttachment(attachment);
+      openLocalAttachment(attachment, t);
       setActionError('');
     } catch (caughtError) {
-      handleLocalAttachmentError(caughtError, setActionError);
+      handleLocalAttachmentError(caughtError, setActionError, t);
     }
   }
 
   function handleDownload() {
     try {
-      downloadLocalAttachment(attachment);
+      downloadLocalAttachment(attachment, t);
       setActionError('');
     } catch (caughtError) {
-      handleLocalAttachmentError(caughtError, setActionError);
+      handleLocalAttachmentError(caughtError, setActionError, t);
     }
   }
 
@@ -217,7 +222,7 @@ function AttachmentCard({ attachment, compact, onRemove }: { attachment: TaskAtt
             <div className="min-w-0">
               <p className="truncate text-sm font-black text-slate-950 dark:text-white">{attachment.name}</p>
               <p className="mt-0.5 text-xs font-bold text-cyan-700/80 dark:text-cyan-200/80">
-                {labelForAttachmentType(attachment.type)}
+                {labelForAttachmentType(attachment.type, t)}
                 {attachment.size ? ` · ${formatAttachmentSize(attachment.size)}` : ''}
               </p>
             </div>
@@ -226,7 +231,7 @@ function AttachmentCard({ attachment, compact, onRemove }: { attachment: TaskAtt
                 type="button"
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 dark:text-slate-300 dark:hover:bg-rose-500/10 dark:hover:text-rose-200"
                 onClick={() => onRemove(attachment.id)}
-                aria-label={`Eliminar adjunto ${attachment.name}`}
+                aria-label={t('attachments.deleteNamed', { name: attachment.name })}
               >
                 <Icon name="trash" className="h-5 w-5" />
               </button>
@@ -278,11 +283,13 @@ function AttachmentPreview({
   onOpen: () => void;
   onDownload: () => void;
 }) {
+  const { t } = useI18n();
+
   if (attachment.type === 'link' && attachment.url) {
     return (
       <div className="mt-2">
         <a className="text-sm font-bold text-cyan-700 underline-offset-4 hover:underline dark:text-cyan-200" href={attachment.url} target="_blank" rel="noreferrer">
-          Abrir link
+          {t('attachments.openLink')}
         </a>
         {attachment.text ? <p className="aura-muted mt-1 text-sm">{attachment.text}</p> : null}
       </div>
@@ -317,10 +324,12 @@ function AttachmentPreview({
     return <AttachmentFileActions onOpen={onOpen} onDownload={onDownload} />;
   }
 
-  return <p className="aura-muted mt-2 text-xs">Vista previa no disponible, pero el adjunto está guardado localmente.</p>;
+  return <p className="aura-muted mt-2 text-xs">{t('attachments.previewUnavailable')}</p>;
 }
 
 function AttachmentFileActions({ onOpen, onDownload }: { onOpen: () => void; onDownload: () => void }) {
+  const { t } = useI18n();
+
   return (
     <div className="mt-2 flex flex-wrap gap-2">
       <button
@@ -328,7 +337,7 @@ function AttachmentFileActions({ onOpen, onDownload }: { onOpen: () => void; onD
         className="inline-flex items-center gap-2 rounded-2xl border border-cyan-500/20 px-3 py-2 text-xs font-black text-cyan-700 transition hover:border-cyan-400 dark:text-cyan-200"
         onClick={onOpen}
       >
-        Abrir
+        {t('attachments.open')}
       </button>
       <button
         type="button"
@@ -336,7 +345,7 @@ function AttachmentFileActions({ onOpen, onDownload }: { onOpen: () => void; onD
         onClick={onDownload}
       >
         <Icon name="download" className="h-4 w-4" />
-        Descargar
+        {t('attachments.download')}
       </button>
     </div>
   );
@@ -357,8 +366,10 @@ function useObjectUrl(attachment: TaskAttachment) {
   return objectUrl;
 }
 
-function openLocalAttachment(attachment: TaskAttachment) {
-  const objectUrl = createLocalAttachmentObjectUrl(attachment);
+type Translate = (key: string, params?: TranslationParams) => string;
+
+function openLocalAttachment(attachment: TaskAttachment, t: Translate) {
+  const objectUrl = createLocalAttachmentObjectUrl(attachment, t);
   const link = document.createElement('a');
 
   link.href = objectUrl;
@@ -375,8 +386,8 @@ function openLocalAttachment(attachment: TaskAttachment) {
   }, 60_000);
 }
 
-function downloadLocalAttachment(attachment: TaskAttachment) {
-  const objectUrl = createLocalAttachmentObjectUrl(attachment);
+function downloadLocalAttachment(attachment: TaskAttachment, t: Translate) {
+  const objectUrl = createLocalAttachmentObjectUrl(attachment, t);
   const link = document.createElement('a');
 
   link.href = objectUrl;
@@ -393,22 +404,22 @@ function downloadLocalAttachment(attachment: TaskAttachment) {
   }, 10_000);
 }
 
-function createLocalAttachmentObjectUrl(attachment: TaskAttachment) {
+function createLocalAttachmentObjectUrl(attachment: TaskAttachment, t: Translate) {
   const blob = getAttachmentBlob(attachment);
 
   if (!blob) {
-    throw new Error('Archivo local ausente o corrupto.');
+    throw new Error(t('attachments.localMissing'));
   }
 
   return URL.createObjectURL(blob);
 }
 
-function handleLocalAttachmentError(caughtError: unknown, setActionError: (message: string) => void) {
+function handleLocalAttachmentError(caughtError: unknown, setActionError: (message: string) => void, t: Translate) {
   if (import.meta.env.DEV) {
     console.error('Error técnico al abrir/descargar adjunto local.', caughtError);
   }
 
-  setActionError('No se pudo abrir el adjunto local. El archivo no está disponible o está corrupto.');
+  setActionError(t('attachments.openError'));
 }
 
 function iconForAttachmentType(type: TaskAttachmentType): IconName {

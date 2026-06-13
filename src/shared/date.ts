@@ -1,7 +1,15 @@
+import type { Language } from './i18n';
+
+const LOCALE_BY_LANGUAGE: Record<Language, string> = {
+  es: 'es-ES',
+  en: 'en-US',
+};
+
 export const ES_DATE_FORMATTER = new Intl.DateTimeFormat('es-ES', {
   weekday: 'long',
-  day: 'numeric',
-  month: 'long',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
 });
 
 export const ES_MONTH_FORMATTER = new Intl.DateTimeFormat('es-ES', {
@@ -45,6 +53,27 @@ export function parseInputDate(value: string) {
   return new Date(year, month - 1, day);
 }
 
-export function formatShortDate(value: string) {
-  return ES_DATE_FORMATTER.format(parseInputDate(value));
+export function dateLocale(language: Language) {
+  return LOCALE_BY_LANGUAGE[language];
+}
+
+export function formatShortDate(value: string, language: Language = 'es') {
+  const locale = dateLocale(language);
+  const options: Intl.DateTimeFormatOptions =
+    language === 'en'
+      ? { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }
+      : { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' };
+
+  return new Intl.DateTimeFormat(locale, options).format(parseInputDate(value));
+}
+
+export function formatMonthTitle(date: Date, language: Language = 'es') {
+  return new Intl.DateTimeFormat(dateLocale(language), {
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+export function formatWeekdayShort(date: Date, language: Language = 'es') {
+  return new Intl.DateTimeFormat(dateLocale(language), { weekday: 'short' }).format(date);
 }

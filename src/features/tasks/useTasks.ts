@@ -11,6 +11,7 @@ import {
   type TaskRepositoryMode,
 } from '../../infrastructure/tasks/taskRepositoryProvider';
 import { createId } from '../../shared/id';
+import { useI18n } from '../../shared/i18n';
 
 function normalizeDraft(draft: TaskDraft): TaskDraft {
   const color = TASK_COLORS.find((item) => item.value === draft.color) ?? TASK_COLORS[0];
@@ -52,6 +53,7 @@ function normalizeDraft(draft: TaskDraft): TaskDraft {
 }
 
 export function useTasks() {
+  const { t } = useI18n();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [taskRepositoryMode, setTaskRepositoryModeState] = useState<TaskRepositoryMode>(() => getTaskRepositoryMode());
@@ -75,14 +77,14 @@ export function useTasks() {
         setTaskRepositoryMode('local');
         const localTasks = await getTaskRepository('local').getAll();
         setTasks(localTasks);
-        setTaskError(`${message} Volvimos a modo local para no perder datos.`);
+        setTaskError(t('task.error.remoteFallbackLocal', { error: message }));
       } else {
         setTaskError(message);
       }
     } finally {
       setIsLoading(false);
     }
-  }, [repository, taskRepositoryMode]);
+  }, [repository, taskRepositoryMode, t]);
 
   useEffect(() => {
     reload();
@@ -106,10 +108,10 @@ export function useTasks() {
         await reload();
         return task;
       } catch (error) {
-        throw setOperationError('No pudimos crear la tarea.', error, setTaskError);
+        throw setOperationError(t('task.error.create'), error, setTaskError);
       }
     },
-    [reload, repository],
+    [reload, repository, t],
   );
 
   const updateTask = useCallback(
@@ -117,7 +119,7 @@ export function useTasks() {
       const taskToUpdate = isVirtualOccurrence(task) && task.sourceTaskId ? tasks.find((item) => item.id === task.sourceTaskId) : task;
 
       if (!taskToUpdate) {
-        throw new Error('No se encontró la serie recurrente para actualizar.');
+        throw new Error(t('task.error.seriesNotFound'));
       }
 
       const now = new Date().toISOString();
@@ -138,10 +140,10 @@ export function useTasks() {
         await reload();
         return updatedTask;
       } catch (error) {
-        throw setOperationError('No pudimos actualizar la tarea.', error, setTaskError);
+        throw setOperationError(t('task.error.update'), error, setTaskError);
       }
     },
-    [reload, repository, tasks],
+    [reload, repository, tasks, t],
   );
 
   const deleteTask = useCallback(
@@ -150,10 +152,10 @@ export function useTasks() {
         await repository.delete(id);
         await reload();
       } catch (error) {
-        throw setOperationError('No pudimos eliminar la tarea.', error, setTaskError);
+        throw setOperationError(t('task.error.delete'), error, setTaskError);
       }
     },
-    [reload, repository],
+    [reload, repository, t],
   );
 
   const toggleTaskCompleted = useCallback(
@@ -186,10 +188,10 @@ export function useTasks() {
         });
         await reload();
       } catch (error) {
-        throw setOperationError('No pudimos cambiar el estado de la tarea.', error, setTaskError);
+        throw setOperationError(t('task.error.toggle'), error, setTaskError);
       }
     },
-    [reload, repository, tasks],
+    [reload, repository, tasks, t],
   );
 
   const deleteOccurrence = useCallback(
@@ -222,10 +224,10 @@ export function useTasks() {
         });
         await reload();
       } catch (error) {
-        throw setOperationError('No pudimos eliminar la ocurrencia.', error, setTaskError);
+        throw setOperationError(t('task.error.deleteOccurrence'), error, setTaskError);
       }
     },
-    [reload, repository, tasks],
+    [reload, repository, tasks, t],
   );
 
   const stats = useMemo(() => {

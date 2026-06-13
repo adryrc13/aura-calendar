@@ -4,6 +4,7 @@ import type { RecurrenceType, Task, TaskDraft, TaskFormValues } from '../../doma
 import { DEFAULT_TASK_DRAFT, RECURRENCE_TYPE_OPTIONS, TASK_COLORS, WEEKDAY_OPTIONS } from '../../domain/tasks/task';
 import { todayInputValue } from '../../shared/date';
 import { Icon, type IconName } from '../../shared/icons';
+import { useI18n } from '../../shared/i18n';
 import { AttachmentEditor } from './TaskAttachments';
 
 interface TaskFormProps {
@@ -49,6 +50,7 @@ function buildInitialDraft(task?: Task, initialValues?: TaskFormValues): TaskDra
 }
 
 export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes, onCancel, onSubmit }: TaskFormProps) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState<TaskDraft>(() => buildInitialDraft(task, initialValues));
   const [reminderMinutesInput, setReminderMinutesInput] = useState(() => `${draft.reminderMinutesBefore}`);
   const [recurrenceIntervalInput, setRecurrenceIntervalInput] = useState(() => `${draft.recurrenceInterval}`);
@@ -172,35 +174,35 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
         <div className="space-y-4 p-4">
           <div>
             <label className="aura-label" htmlFor="task-title">
-              Título
+              {t('task.title')}
             </label>
             <input
               id="task-title"
               className="aura-input mt-2"
               value={draft.title}
               onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
-              placeholder="Ej: tomar medicación"
+              placeholder={t('task.titlePlaceholder')}
               required
             />
           </div>
 
           <div>
             <label className="aura-label" htmlFor="task-description">
-              Descripción
+              {t('task.description')}
             </label>
             <textarea
               id="task-description"
               className="aura-input mt-2 min-h-24 resize-none"
               value={draft.description}
               onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
-              placeholder="Notas, detalles o contexto"
+              placeholder={t('task.descriptionPlaceholder')}
             />
           </div>
         </div>
       </section>
 
       <section className="aura-card overflow-hidden">
-        <FormRow icon="calendar" label="Fecha" htmlFor="task-date">
+        <FormRow icon="calendar" label={t('task.date')} htmlFor="task-date">
           <input
             id="task-date"
             className="aura-input text-right"
@@ -211,7 +213,7 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
           />
         </FormRow>
 
-        <FormRow icon="clock" label="Hora" htmlFor="task-time">
+        <FormRow icon="clock" label={t('task.time')} htmlFor="task-time">
           <div className="w-full">
             <input
               id="task-time"
@@ -230,7 +232,7 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
                     onClick={() => setDraft((current) => ({ ...current, time }))}
                     className="rounded-xl bg-amber-100 px-3 py-2 text-xs font-black text-amber-900 transition hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-100"
                   >
-                    Usar {time}
+                    {t('common.useValue', { value: time })}
                   </button>
                 ))}
               </div>
@@ -238,7 +240,7 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
           </div>
         </FormRow>
 
-        <FormRow icon="timer" label="Fin opcional" htmlFor="task-end-time">
+        <FormRow icon="timer" label={t('task.endTime')} htmlFor="task-end-time">
           <input
             id="task-end-time"
             className="aura-input text-right"
@@ -248,7 +250,7 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
           />
         </FormRow>
 
-        <FormRow icon="palette" label="Color">
+        <FormRow icon="palette" label={t('task.color')}>
           <div className="flex flex-wrap justify-end gap-3">
             {TASK_COLORS.map((color) => {
               const isSelected = draft.color === color.value;
@@ -270,7 +272,7 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
                       : 'border-white/70 hover:scale-105 dark:border-slate-700'
                   }`}
                   style={{ background: color.swatch }}
-                  aria-label={`Color ${color.label}`}
+                  aria-label={`${t('task.color')} ${t(`color.${color.value}`)}`}
                 />
               );
             })}
@@ -279,7 +281,7 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
       </section>
 
       <section className="aura-card overflow-hidden">
-        <FormRow icon="bell" label="Recordatorio" htmlFor="task-reminder-enabled">
+        <FormRow icon="bell" label={t('task.reminder')} htmlFor="task-reminder-enabled">
           <input
             id="task-reminder-enabled"
             type="checkbox"
@@ -289,7 +291,7 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
           />
         </FormRow>
 
-        <FormRow icon="timer" label="Minutos antes" htmlFor="task-reminder-minutes">
+        <FormRow icon="timer" label={t('task.minutesBefore')} htmlFor="task-reminder-minutes">
           <input
             id="task-reminder-minutes"
             className="aura-input text-right"
@@ -302,7 +304,7 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
           />
         </FormRow>
 
-        <FormRow icon="volumeOff" label="Sin sonido" htmlFor="task-reminder-silent">
+        <FormRow icon="volumeOff" label={t('task.noSound')} htmlFor="task-reminder-silent">
           <input
             id="task-reminder-silent"
             type="checkbox"
@@ -320,7 +322,7 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
       />
 
       <section className="aura-card overflow-hidden">
-        <FormRow icon="repeat" label="Repetición" htmlFor="task-recurrence-type">
+        <FormRow icon="repeat" label={t('recurrence.title')} htmlFor="task-recurrence-type">
           <RecurrenceTypeSelect
             id="task-recurrence-type"
             value={draft.recurrenceType}
@@ -335,7 +337,7 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
               draft.recurrenceType === 'weekly' ||
               draft.recurrenceType === 'monthly' ||
               draft.recurrenceType === 'yearly') ? (
-              <FormRow icon="calendar" label="Intervalo" htmlFor="task-recurrence-interval">
+              <FormRow icon="calendar" label={t('recurrence.interval')} htmlFor="task-recurrence-interval">
                 <input
                   id="task-recurrence-interval"
                   className="aura-input text-right"
@@ -352,7 +354,7 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
               draft.recurrenceType === 'custom-weeks' ||
               draft.recurrenceType === 'weekdays') ? (
               <div className="border-b border-slate-200/50 p-4 last:border-b-0 dark:border-slate-800/70">
-                <p className="aura-label">Días de la semana</p>
+                <p className="aura-label">{t('recurrence.weekdays')}</p>
                 <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {WEEKDAY_OPTIONS.map((day) => {
                     const isSelected = draft.recurrenceDaysOfWeek.includes(day.value);
@@ -368,13 +370,13 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
                             : 'border-cyan-500/10 bg-white/60 text-slate-700 hover:border-cyan-300 hover:bg-cyan-50 dark:bg-slate-950/40 dark:text-slate-200'
                         }`}
                       >
-                        {day.label}
+                        {t(`weekday.${day.value}`)}
                       </button>
                     );
                   })}
                 </div>
                 <p className="aura-muted mt-2 text-xs">
-                  Si no elegís días, se usa el día inicial de la tarea.
+                  {t('recurrence.weekdaysHint')}
                 </p>
               </div>
             ) : null}
@@ -382,7 +384,7 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
             {(draft.recurrenceType === 'monthly' || draft.recurrenceType === 'month-days') ? (
               <div className="border-b border-slate-200/50 p-4 last:border-b-0 dark:border-slate-800/70">
                 <label className="aura-label" htmlFor="task-recurrence-month-days">
-                  Días del mes
+                  {t('recurrence.monthDays')}
                 </label>
                 <input
                   id="task-recurrence-month-days"
@@ -391,11 +393,11 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
                   onChange={(event) => updateMonthDays(event.target.value)}
                   placeholder="1, 15"
                 />
-                <p className="aura-muted mt-2 text-xs">Separá con comas. Si queda vacío, se usa el día inicial.</p>
+                <p className="aura-muted mt-2 text-xs">{t('recurrence.monthDaysHint')}</p>
               </div>
             ) : null}
 
-            <FormRow icon="flag" label="Repetir hasta" htmlFor="task-recurrence-end-date">
+            <FormRow icon="flag" label={t('recurrence.repeatUntil')} htmlFor="task-recurrence-end-date">
               <input
                 id="task-recurrence-end-date"
                 className="aura-input text-right"
@@ -405,7 +407,7 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
               />
             </FormRow>
 
-            <FormRow icon="hash" label="Máx. veces" htmlFor="task-recurrence-count">
+            <FormRow icon="hash" label={t('recurrence.maxCount')} htmlFor="task-recurrence-count">
               <input
                 id="task-recurrence-count"
                 className="aura-input text-right"
@@ -418,7 +420,7 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
                     recurrenceCount: event.target.value ? Number(event.target.value) : undefined,
                   }))
                 }
-                placeholder="Opcional"
+                placeholder={t('common.optional')}
               />
             </FormRow>
           </>
@@ -429,10 +431,10 @@ export function TaskForm({ task, initialValues, assistantNotice, suggestedTimes,
 
       <div className="flex justify-start gap-3 pt-2">
         <button type="button" onClick={onCancel} className="aura-secondary min-w-32">
-          Cancelar
+          {t('common.cancel')}
         </button>
         <button type="submit" disabled={isSaving || !draft.title.trim()} className="aura-primary min-w-40">
-          {isSaving ? 'Guardando…' : task ? 'Guardar' : 'Crear tarea'}
+          {isSaving ? t('task.saving') : task ? t('common.save') : t('common.createTask')}
         </button>
       </div>
     </form>
@@ -453,6 +455,7 @@ interface FloatingMenuPosition {
 }
 
 function RecurrenceTypeSelect({ id, value, onChange }: RecurrenceTypeSelectProps) {
+  const { t } = useI18n();
   const listboxId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -463,6 +466,7 @@ function RecurrenceTypeSelect({ id, value, onChange }: RecurrenceTypeSelectProps
   const [menuPosition, setMenuPosition] = useState<FloatingMenuPosition | null>(null);
   const selectedIndex = Math.max(0, RECURRENCE_TYPE_OPTIONS.findIndex((option) => option.value === value));
   const selectedOption = RECURRENCE_TYPE_OPTIONS[selectedIndex] ?? RECURRENCE_TYPE_OPTIONS[0];
+  const selectedOptionLabel = t(`recurrence.option.${selectedOption.value}`);
 
   function updateMenuPosition() {
     const trigger = triggerRef.current;
@@ -604,7 +608,7 @@ function RecurrenceTypeSelect({ id, value, onChange }: RecurrenceTypeSelectProps
         onClick={handleTriggerClick}
         onKeyDown={handleTriggerKeyDown}
       >
-        <span className="min-w-0 truncate">{selectedOption.label}</span>
+        <span className="min-w-0 truncate">{selectedOptionLabel}</span>
         <Icon
           name="chevronDown"
           className={`h-5 w-5 shrink-0 text-slate-500 transition dark:text-slate-300 ${
@@ -650,7 +654,7 @@ function RecurrenceTypeSelect({ id, value, onChange }: RecurrenceTypeSelectProps
                     onFocus={() => setFocusedIndex(index)}
                     onMouseEnter={() => setFocusedIndex(index)}
                   >
-                    <span>{option.label}</span>
+                    <span>{t(`recurrence.option.${option.value}`)}</span>
                     {isSelected ? <Icon name="check" className="h-4 w-4 shrink-0" /> : null}
                   </button>
                 );
