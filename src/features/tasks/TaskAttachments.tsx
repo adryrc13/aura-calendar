@@ -16,6 +16,8 @@ import {
 import { createId } from '../../shared/id';
 import { Icon, type IconName } from '../../shared/icons';
 import { useI18n, type TranslationParams } from '../../shared/i18n';
+import { getSupabaseClient } from '../../infrastructure/supabase/supabaseClient';
+import { downloadRemoteAttachment } from '../../infrastructure/supabase/supabaseAttachmentRepository';
 
 interface AttachmentEditorProps {
   attachments: TaskAttachment[];
@@ -194,21 +196,29 @@ function AttachmentCard({ attachment, compact, onRemove }: { attachment: TaskAtt
   const icon = iconForAttachmentType(attachment.type);
   const [actionError, setActionError] = useState('');
 
-  function handleOpen() {
+  async function handleOpen() {
     try {
-      openLocalAttachment(attachment, t);
+      if (attachment.storagePath) {
+        await openRemoteAttachment(attachment, t);
+      } else {
+        openLocalAttachment(attachment, t);
+      }
       setActionError('');
     } catch (caughtError) {
-      handleLocalAttachmentError(caughtError, setActionError, t);
+      handleAttachmentActionError(caughtError, setActionError, t);
     }
   }
 
-  function handleDownload() {
+  async function handleDownload() {
     try {
-      downloadLocalAttachment(attachment, t);
+      if (attachment.storagePath) {
+        await downloadRemoteAttachmentFromUi(attachment, t);
+      } else {
+        downloadLocalAttachment(attachment, t);
+      }
       setActionError('');
     } catch (caughtError) {
-      handleLocalAttachmentError(caughtError, setActionError, t);
+      handleAttachmentActionError(caughtError, setActionError, t);
     }
   }
 
@@ -224,6 +234,9 @@ function AttachmentCard({ attachment, compact, onRemove }: { attachment: TaskAtt
               <p className="mt-0.5 text-xs font-bold text-cyan-700/80 dark:text-cyan-200/80">
                 {labelForAttachmentType(attachment.type, t)}
                 {attachment.size ? ` · ${formatAttachmentSize(attachment.size)}` : ''}
+              </p>
+              <p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                {t(`attachments.status.${attachment.syncStatus ?? (attachment.storagePath ? 'remote' : 'local')}`)}
               </p>
             </div>
             {onRemove ? (
@@ -280,8 +293,8 @@ function AttachmentPreview({
   attachment: TaskAttachment;
   objectUrl?: string;
   compact: boolean;
-  onOpen: () => void;
-  onDownload: () => void;
+  onOpen: () => void | Promise<void>;
+  onDownload: () => void | Promise<void>;
 }) {
   const { t } = useI18n();
 
@@ -320,14 +333,14 @@ function AttachmentPreview({
     );
   }
 
-  if ((attachment.type === 'pdf' || attachment.type === 'document' || attachment.type === 'image') && hasLocalAttachmentBlob(attachment)) {
+  if ((attachment.type === 'pdf' || attachment.type === 'document' || attachment.type === 'image') && (hasLocalAttachmentBlob(attachment) || attachment.storagePath)) {
     return <AttachmentFileActions onOpen={onOpen} onDownload={onDownload} />;
   }
 
-  return <p className="aura-muted mt-2 text-xs">{t('attachments.previewUnavailable')}</p>;
+  return <p className="aura-muted mt-2 text-xs">{attachment.storagePath ? t('attachments.remotePreviewUnavailable') : t('attachments.previewUnavailable')}</p>;
 }
 
-function AttachmentFileActions({ onOpen, onDownload }: { onOpen: () => void; onDownload: () => void }) {
+function AttachmentFileActions({ onOpen, onDownload }: { onOpen: () => void | Promise<void>; onDownload: () => void | Promise<void> }) {
   const { t } = useI18n();
 
   return (
@@ -352,18 +365,44 @@ function AttachmentFileActions({ onOpen, onDownload }: { onOpen: () => void; onD
 }
 
 function useObjectUrl(attachment: TaskAttachment) {
-  const objectUrl = useMemo(() => {
+  const localObjectUrl = useMemo(() => {
     const blob = getAttachmentBlob(attachment);
     return blob ? URL.createObjectURL(blob) : undefined;
   }, [attachment.data, attachment.mimeType, attachment.size]);
+  const [remoteObjectUrl, setRemoteObjectUrl] = useState<string>();
 
   useEffect(() => {
     return () => {
+      if (localObjectUrl) URL.revokeObjectURL(localObjectUrl);
+    };
+  }, [localObjectUrl]);
+
+  useEffect(() => {
+    if (localObjectUrl || !attachment.storagePath || !canPreviewRemoteInline(attachment.type)) {
+      setRemoteObjectUrl(undefined);
+      return;
+    }
+
+    let isMounted = true;
+    let objectUrl: string | undefined;
+
+    downloadRemoteBlob(attachment)
+      .then((blob) => {
+        if (!isMounted) return;
+        objectUrl = URL.createObjectURL(blob);
+        setRemoteObjectUrl(objectUrl);
+      })
+      .catch(() => {
+        if (isMounted) setRemoteObjectUrl(undefined);
+      });
+
+    return () => {
+      isMounted = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [objectUrl]);
+  }, [attachment.id, attachment.storagePath, attachment.type, localObjectUrl]);
 
-  return objectUrl;
+  return localObjectUrl ?? remoteObjectUrl;
 }
 
 type Translate = (key: string, params?: TranslationParams) => string;
@@ -404,6 +443,52 @@ function downloadLocalAttachment(attachment: TaskAttachment, t: Translate) {
   }, 10_000);
 }
 
+async function openRemoteAttachment(attachment: TaskAttachment, t: Translate) {
+  const objectUrl = URL.createObjectURL(await downloadRemoteBlob(attachment));
+  const link = document.createElement('a');
+
+  link.href = objectUrl;
+  link.target = '_blank';
+  link.rel = 'noreferrer';
+  link.style.display = 'none';
+
+  document.body.appendChild(link);
+  link.click();
+
+  setTimeout(() => {
+    URL.revokeObjectURL(objectUrl);
+    link.remove();
+  }, 60_000);
+}
+
+async function downloadRemoteAttachmentFromUi(attachment: TaskAttachment, t: Translate) {
+  const objectUrl = URL.createObjectURL(await downloadRemoteBlob(attachment));
+  const link = document.createElement('a');
+
+  link.href = objectUrl;
+  link.download = safeAttachmentFileName(attachment.name);
+  link.rel = 'noreferrer';
+  link.style.display = 'none';
+
+  document.body.appendChild(link);
+  link.click();
+
+  setTimeout(() => {
+    URL.revokeObjectURL(objectUrl);
+    link.remove();
+  }, 10_000);
+}
+
+async function downloadRemoteBlob(attachment: TaskAttachment) {
+  const client = getSupabaseClient();
+
+  if (!client) {
+    throw new Error('Supabase no configurado.');
+  }
+
+  return downloadRemoteAttachment(client, attachment);
+}
+
 function createLocalAttachmentObjectUrl(attachment: TaskAttachment, t: Translate) {
   const blob = getAttachmentBlob(attachment);
 
@@ -414,12 +499,16 @@ function createLocalAttachmentObjectUrl(attachment: TaskAttachment, t: Translate
   return URL.createObjectURL(blob);
 }
 
-function handleLocalAttachmentError(caughtError: unknown, setActionError: (message: string) => void, t: Translate) {
+function handleAttachmentActionError(caughtError: unknown, setActionError: (message: string) => void, t: Translate) {
   if (import.meta.env.DEV) {
-    console.error('Error técnico al abrir/descargar adjunto local.', caughtError);
+    console.error('Error técnico al abrir/descargar adjunto.', caughtError);
   }
 
   setActionError(t('attachments.openError'));
+}
+
+function canPreviewRemoteInline(type: TaskAttachmentType) {
+  return type === 'image' || type === 'audio' || type === 'video';
 }
 
 function iconForAttachmentType(type: TaskAttachmentType): IconName {

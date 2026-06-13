@@ -3,11 +3,14 @@ import {
   createNoteAttachment,
   detectAttachmentFileType,
   MAX_ATTACHMENT_SIZE_BYTES,
+  canUploadAttachmentToStorage,
   getAttachmentBlob,
   hasLocalAttachmentBlob,
   normalizeTaskAttachments,
   removeAttachmentById,
   safeAttachmentFileName,
+  safeStorageFileName,
+  shouldStoreAttachmentOnlyAsMetadata,
   validateAttachmentFile,
   type AttachmentFileLike,
   type TaskAttachment,
@@ -94,6 +97,18 @@ export function runAttachmentInternalTests() {
     {
       name: 'sanitizar nombre de descarga',
       ok: safeAttachmentFileName('a/b:c?.png') === 'a-b-c-.png',
+    },
+    {
+      name: 'generar storage path seguro',
+      ok: safeStorageFileName('fótó final / Cádiz?.png') === 'foto-final-Cadiz.png',
+    },
+    {
+      name: 'detectar adjuntos que no deben subir a Storage',
+      ok: shouldStoreAttachmentOnlyAsMetadata(link) && shouldStoreAttachmentOnlyAsMetadata(note),
+    },
+    {
+      name: 'detectar archivo local subible a Storage',
+      ok: canUploadAttachmentToStorage({ ...normalized[0], data: imageBlob }),
     },
     {
       name: 'rechazar tipo no soportado',

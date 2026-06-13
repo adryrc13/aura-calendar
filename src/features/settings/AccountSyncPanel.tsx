@@ -4,7 +4,9 @@ import { useI18n } from '../../shared/i18n';
 import {
   activateRemoteTaskSync,
   ensureDefaultRemoteCalendar,
+  migrateLocalAttachmentsToSupabase,
   migrateLocalTasksToSupabase,
+  type AttachmentMigrationSummary,
   type TaskMigrationSummary,
 } from '../../infrastructure/supabase/supabaseTaskRepository';
 import {
@@ -24,6 +26,7 @@ export function AccountSyncPanel() {
   const [repositoryMode, setRepositoryMode] = useState<TaskRepositoryMode>(() => getTaskRepositoryMode());
   const [statusMessage, setStatusMessage] = useState('');
   const [migrationSummary, setMigrationSummary] = useState<TaskMigrationSummary | null>(null);
+  const [attachmentMigrationSummary, setAttachmentMigrationSummary] = useState<AttachmentMigrationSummary | null>(null);
   const [isSyncActionRunning, setIsSyncActionRunning] = useState(false);
 
   useEffect(() => subscribeTaskRepositoryModeChange(setRepositoryMode), []);
@@ -35,11 +38,13 @@ export function AccountSyncPanel() {
     if (result.ok) {
       setTaskRepositoryMode('local');
       setMigrationSummary(null);
+      setAttachmentMigrationSummary(null);
     }
   }
 
   async function handleActivateRemoteSync() {
     setMigrationSummary(null);
+    setAttachmentMigrationSummary(null);
 
     if (!isConfigured) {
       setStatusMessage(t('sync.missingSupabaseShort', { keys: missingKeys.join(', ') }));
@@ -67,6 +72,7 @@ export function AccountSyncPanel() {
 
   async function handleMigrateLocalTasks() {
     setMigrationSummary(null);
+    setAttachmentMigrationSummary(null);
 
     if (!isConfigured) {
       setStatusMessage(t('sync.missingSupabaseShort', { keys: missingKeys.join(', ') }));
@@ -100,6 +106,38 @@ export function AccountSyncPanel() {
     setStatusMessage(t('sync.localOnlyActive'));
   }
 
+  async function handleMigrateLocalAttachments() {
+    setMigrationSummary(null);
+    setAttachmentMigrationSummary(null);
+
+    if (!isConfigured) {
+      setStatusMessage(t('sync.missingSupabaseShort', { keys: missingKeys.join(', ') }));
+      return;
+    }
+
+    if (!user) {
+      setStatusMessage(t('sync.loginRequiredMigration'));
+      return;
+    }
+
+    if (repositoryMode !== 'remote') {
+      setStatusMessage(t('sync.remoteRequiredAttachments'));
+      return;
+    }
+
+    setIsSyncActionRunning(true);
+
+    try {
+      const summary = await migrateLocalAttachmentsToSupabase();
+      setAttachmentMigrationSummary(summary);
+      setStatusMessage(summary.tasksWithoutRemote ? t('sync.attachmentsMigration.tasksFirst') : t('sync.attachmentsMigrationDone'));
+    } catch (error) {
+      setStatusMessage(errorMessage(error));
+    } finally {
+      setIsSyncActionRunning(false);
+    }
+  }
+
   const remoteAvailable = isConfigured && Boolean(user);
   const currentStateLabel = repositoryMode === 'remote' ? t('sync.remoteActive') : t('sync.localMode');
   const supabaseLabel = remoteAvailable
@@ -122,10 +160,11 @@ export function AccountSyncPanel() {
           </span>
         </div>
 
-        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
+        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-4">
           <StatusChip label={t('sync.status')} value={currentStateLabel} tone={repositoryMode === 'remote' ? 'ok' : 'neutral'} />
           <StatusChip label={t('sync.supabase')} value={supabaseLabel} tone={remoteAvailable ? 'ok' : isConfigured ? 'neutral' : 'warn'} />
           <StatusChip label={t('sync.user')} value={isLoadingSession ? t('sync.checking') : user?.email ?? t('sync.notConnected')} tone={user ? 'ok' : 'neutral'} />
+          <StatusChip label={t('sync.remoteAttachments')} value={t('sync.remoteAttachmentsAvailable')} tone={remoteAvailable ? 'ok' : 'neutral'} />
         </div>
 
         {!isConfigured ? (
@@ -146,23 +185,27 @@ export function AccountSyncPanel() {
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid gap-3 sm:grid-cols-4">
           <button type="button" className="aura-primary" onClick={handleActivateRemoteSync} disabled={!remoteAvailable || isSyncActionRunning}>
             {t('sync.enableRemote')}
           </button>
           <button type="button" className="aura-secondary" onClick={handleMigrateLocalTasks} disabled={!remoteAvailable || isSyncActionRunning}>
             {t('sync.migrateLocal')}
           </button>
+          <button type="button" className="aura-secondary" onClick={handleMigrateLocalAttachments} disabled={!remoteAvailable || isSyncActionRunning}>
+            {t('sync.migrateLocalAttachments')}
+          </button>
           <button type="button" className="aura-secondary" onClick={handleUseLocalOnly} disabled={repositoryMode === 'local' || isSyncActionRunning}>
             {t('sync.useLocalOnly')}
           </button>
         </div>
 
-        <p className="aura-muted mt-3 text-xs font-semibold">{t('sync.localAttachmentsNotUploaded')}</p>
+        <p className="aura-muted mt-3 text-xs font-semibold">{t('sync.remoteAttachmentsNote')}</p>
 
         {statusMessage ? <p className="aura-muted mt-3 text-sm font-semibold">{statusMessage}</p> : null}
 
         {migrationSummary ? <MigrationSummary summary={migrationSummary} /> : null}
+        {attachmentMigrationSummary ? <AttachmentMigrationSummaryView summary={attachmentMigrationSummary} /> : null}
       </div>
 
       {authMode ? (
@@ -208,6 +251,27 @@ function MigrationSummary({ summary }: { summary: TaskMigrationSummary }) {
       <p>{t('sync.migration.errors', { count: summary.errors.length })}</p>
       {summary.tasksWithLocalAttachments ? <p>{t('sync.migration.withAttachments', { count: summary.tasksWithLocalAttachments })}</p> : null}
       <p>{summary.note}</p>
+      {summary.errors.length ? (
+        <ul className="mt-2 list-disc space-y-1 pl-4">
+          {summary.errors.map((error) => (
+            <li key={error}>{error}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+function AttachmentMigrationSummaryView({ summary }: { summary: AttachmentMigrationSummary }) {
+  const { t } = useI18n();
+
+  return (
+    <div className="mt-4 rounded-2xl border border-cyan-300/40 bg-cyan-50/70 p-3 text-xs font-bold text-cyan-950 dark:bg-cyan-500/10 dark:text-cyan-100">
+      <p>{t('sync.attachmentsMigration.found', { count: summary.attachmentsFound })}</p>
+      <p>{t('sync.attachmentsMigration.uploaded', { count: summary.attachmentsUploaded })}</p>
+      <p>{t('sync.attachmentsMigration.skipped', { count: summary.attachmentsSkipped })}</p>
+      <p>{t('sync.attachmentsMigration.errors', { count: summary.errors.length })}</p>
+      {summary.tasksWithoutRemote ? <p>{t('sync.attachmentsMigration.tasksWithoutRemote', { count: summary.tasksWithoutRemote })}</p> : null}
       {summary.errors.length ? (
         <ul className="mt-2 list-disc space-y-1 pl-4">
           {summary.errors.map((error) => (

@@ -1,6 +1,7 @@
 import { createTranslator, type TranslationParams } from '../../shared/i18n';
 
 export type TaskAttachmentType = 'image' | 'pdf' | 'audio' | 'video' | 'document' | 'link' | 'note';
+export type TaskAttachmentSyncStatus = 'local' | 'remote' | 'pending' | 'error';
 
 export interface TaskAttachment {
   id: string;
@@ -11,14 +12,16 @@ export interface TaskAttachment {
   size?: number;
   /**
    * Fase 3 local: payload binario guardado como Blob/File en IndexedDB.
-   * Migración futura: mover este payload a Supabase Storage y conservar esta
-   * metadata en Supabase Database con `url`/storage path.
+   * Fase 4C remota: los blobs viven en Supabase Storage y la metadata en Database.
    */
   data?: Blob;
+  storagePath?: string;
   url?: string;
   text?: string;
   createdAt: string;
   updatedAt: string;
+  syncStatus?: TaskAttachmentSyncStatus;
+  remoteId?: string;
 }
 
 export interface AttachmentFileLike {
@@ -107,6 +110,7 @@ export function createFileAttachment(
     mimeType: file.type || undefined,
     size: file.size,
     data: file,
+    syncStatus: 'local',
     createdAt: now,
     updatedAt: now,
   };
@@ -130,6 +134,7 @@ export function createLinkAttachment(
     name,
     url,
     text,
+    syncStatus: 'local',
     createdAt: now,
     updatedAt: now,
   };
@@ -154,6 +159,7 @@ export function createNoteAttachment(
     type: 'note',
     name: normalized.length > 34 ? `${normalized.slice(0, 34)}…` : normalized,
     text: normalized,
+    syncStatus: 'local',
     createdAt: now,
     updatedAt: now,
   };
@@ -165,6 +171,7 @@ export function normalizeTaskAttachments(attachments: TaskAttachment[] | undefin
     taskId,
     name: attachment.name.trim() || labelForAttachmentType(attachment.type),
     data: getAttachmentBlob(attachment),
+    syncStatus: attachment.syncStatus ?? inferAttachmentSyncStatus(attachment),
     text: attachment.text?.trim() || undefined,
     updatedAt: attachment.updatedAt || now,
     createdAt: attachment.createdAt || now,
@@ -200,6 +207,26 @@ export function safeAttachmentFileName(name: string) {
   return (name.trim() || createTranslator('es')('attachments.defaultLocalName')).replace(/[\\/:*?"<>|]+/g, '-');
 }
 
+export function safeStorageFileName(name: string) {
+  const cleaned = safeAttachmentFileName(name)
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/-+\./g, '.')
+    .replace(/^[._-]+|[._-]+$/g, '');
+
+  return cleaned || createTranslator('es')('attachments.defaultLocalName');
+}
+
+export function canUploadAttachmentToStorage(attachment: Pick<TaskAttachment, 'type' | 'data' | 'mimeType' | 'size'>) {
+  return attachment.type !== 'link' && attachment.type !== 'note' && hasLocalAttachmentBlob(attachment);
+}
+
+export function shouldStoreAttachmentOnlyAsMetadata(attachment: Pick<TaskAttachment, 'type'>) {
+  return attachment.type === 'link' || attachment.type === 'note';
+}
+
 export function removeAttachmentById(attachments: TaskAttachment[] | undefined, id: string) {
   return (attachments ?? []).filter((attachment) => attachment.id !== id);
 }
@@ -213,6 +240,12 @@ export function formatAttachmentSize(size?: number) {
 
 export function labelForAttachmentType(type: TaskAttachmentType, translate: Translate = createTranslator('es')) {
   return translate(`attachments.type.${type}`);
+}
+
+function inferAttachmentSyncStatus(attachment: TaskAttachment): TaskAttachmentSyncStatus {
+  if (attachment.storagePath) return 'remote';
+  if (attachment.data) return 'local';
+  return 'pending';
 }
 
 function normalizeExternalUrl(rawUrl: string, translate: Translate) {

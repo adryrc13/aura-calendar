@@ -10,6 +10,7 @@ import {
   subscribeTaskRepositoryModeChange,
   type TaskRepositoryMode,
 } from '../../infrastructure/tasks/taskRepositoryProvider';
+import { consumeRemoteAttachmentSyncWarnings } from '../../infrastructure/supabase/supabaseTaskRepository';
 import { createId } from '../../shared/id';
 import { useI18n } from '../../shared/i18n';
 
@@ -106,6 +107,7 @@ export function useTasks() {
       try {
         await repository.upsert(task);
         await reload();
+        showAttachmentWarnings(setTaskError, t);
         return task;
       } catch (error) {
         throw setOperationError(t('task.error.create'), error, setTaskError);
@@ -138,6 +140,7 @@ export function useTasks() {
       try {
         await repository.upsert(updatedTask);
         await reload();
+        showAttachmentWarnings(setTaskError, t);
         return updatedTask;
       } catch (error) {
         throw setOperationError(t('task.error.update'), error, setTaskError);
@@ -254,6 +257,14 @@ function setOperationError(prefix: string, error: unknown, setTaskError: (messag
   const message = `${prefix} ${errorMessage(error)}`;
   setTaskError(message);
   return new Error(message);
+}
+
+function showAttachmentWarnings(setTaskError: (message: string) => void, t: (key: string, params?: Record<string, string>) => string) {
+  const warnings = consumeRemoteAttachmentSyncWarnings();
+
+  if (warnings.length) {
+    setTaskError(t('task.error.remoteAttachmentWarning', { errors: warnings.join(' ') }));
+  }
 }
 
 function errorMessage(error: unknown) {

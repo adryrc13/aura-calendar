@@ -4,6 +4,15 @@ import type { TaskRepository } from '../../domain/tasks/taskRepository';
 import { dexieTaskRepository } from '../db/dexieTaskRepository';
 import { getSupabaseClient } from './supabaseClient';
 import {
+  deleteRemoteAttachmentsForTask,
+  listRemoteAttachmentsForTasks,
+  supabaseAttachmentRowToAttachment,
+  syncRemoteTaskAttachments,
+  uploadMissingRemoteTaskAttachments,
+  type LocalAttachmentMigrationSummary,
+  type RemoteAttachmentSyncResult,
+} from './supabaseAttachmentRepository';
+import {
   isUuid,
   shouldCreateDefaultCalendar,
   shouldSkipMigratedTask,
@@ -23,9 +32,18 @@ export interface TaskMigrationSummary {
   note: string;
 }
 
+export interface AttachmentMigrationSummary {
+  attachmentsFound: number;
+  attachmentsUploaded: number;
+  attachmentsSkipped: number;
+  errors: string[];
+  tasksWithoutRemote: number;
+}
+
 const DEFAULT_CALENDAR_STORAGE_PREFIX = 'aura-calendar:default-calendar:';
 const TASK_MIGRATION_STORAGE_PREFIX = 'aura-calendar:task-migration:';
 const ATTACHMENTS_PHASE_4C_NOTE = 'Los adjuntos se sincronizarán en la Fase 4C.';
+let lastAttachmentSyncWarnings: string[] = [];
 
 export const supabaseTaskRepository: TaskRepository = {
   async getAll() {
@@ -44,7 +62,20 @@ export const supabaseTaskRepository: TaskRepository = {
       throw new Error(`No pudimos leer las tareas remotas: ${error.message}`);
     }
 
-    return ((data ?? []) as SupabaseTaskRow[]).map(supabaseRowToTask);
+    const tasks = ((data ?? []) as SupabaseTaskRow[]).map(supabaseRowToTask);
+    const attachments = await listRemoteAttachmentsForTasks(client, user.id, tasks.map((task) => task.id));
+    const attachmentsByTask = new Map<string, Task['attachments']>();
+
+    for (const row of attachments) {
+      const current = attachmentsByTask.get(row.task_id) ?? [];
+      current.push(supabaseAttachmentRowToAttachment(row));
+      attachmentsByTask.set(row.task_id, current);
+    }
+
+    return tasks.map((task) => ({
+      ...task,
+      attachments: attachmentsByTask.get(task.id) ?? [],
+    }));
   },
 
   async upsert(task: Task) {
@@ -58,11 +89,29 @@ export const supabaseTaskRepository: TaskRepository = {
     if (error) {
       throw new Error(`No pudimos guardar la tarea en Supabase: ${error.message}`);
     }
+
+    try {
+      const syncResult = await syncRemoteTaskAttachments(client, user.id, {
+        ...task,
+        id: row.id,
+        calendarId: row.calendar_id,
+        ownerId: user.id,
+      });
+      rememberAttachmentWarnings(syncResult);
+    } catch (syncError) {
+      lastAttachmentSyncWarnings = [errorMessage(syncError)];
+    }
   },
 
   async delete(id: string) {
     const client = requireSupabaseClient();
     const user = await requireSupabaseUser(client);
+    const attachmentErrors = await deleteRemoteAttachmentsForTask(client, user.id, id);
+
+    if (attachmentErrors.length) {
+      throw new Error(`No pudimos eliminar todos los adjuntos remotos: ${attachmentErrors.join(' ')}`);
+    }
+
     const { error } = await client.from('tasks').delete().eq('id', id).eq('owner_id', user.id);
 
     if (error) {
@@ -70,6 +119,12 @@ export const supabaseTaskRepository: TaskRepository = {
     }
   },
 };
+
+export function consumeRemoteAttachmentSyncWarnings() {
+  const warnings = lastAttachmentSyncWarnings;
+  lastAttachmentSyncWarnings = [];
+  return warnings;
+}
 
 export async function ensureDefaultRemoteCalendar(client = requireSupabaseClient(), user?: User): Promise<SupabaseCalendarRow> {
   const currentUser = user ?? (await requireSupabaseUser(client));
@@ -197,6 +252,52 @@ export async function migrateLocalTasksToSupabase(): Promise<TaskMigrationSummar
   return summary;
 }
 
+export async function migrateLocalAttachmentsToSupabase(): Promise<AttachmentMigrationSummary> {
+  const client = requireSupabaseClient();
+  const user = await requireSupabaseUser(client);
+  const localTasks = await dexieTaskRepository.getAll();
+  const migratedLocalToRemoteIds = readMigratedTaskMap(user.id);
+  const { data: remoteTasks, error: remoteReadError } = await client
+    .from('tasks')
+    .select('id')
+    .eq('owner_id', user.id);
+
+  if (remoteReadError) {
+    throw new Error(`No pudimos comprobar tareas remotas: ${remoteReadError.message}`);
+  }
+
+  const existingRemoteIds = new Set(((remoteTasks ?? []) as Array<{ id: string }>).map((task) => task.id));
+  const summary: AttachmentMigrationSummary = {
+    attachmentsFound: 0,
+    attachmentsUploaded: 0,
+    attachmentsSkipped: 0,
+    errors: [],
+    tasksWithoutRemote: 0,
+  };
+
+  for (const localTask of localTasks) {
+    const attachments = localTask.attachments ?? [];
+    if (!attachments.length) continue;
+
+    const remoteTaskId = resolveRemoteTaskIdForLocalTask(localTask.id, migratedLocalToRemoteIds, existingRemoteIds);
+
+    if (!remoteTaskId) {
+      summary.attachmentsFound += attachments.length;
+      summary.attachmentsSkipped += attachments.length;
+      summary.tasksWithoutRemote += 1;
+      continue;
+    }
+
+    const taskSummary: LocalAttachmentMigrationSummary = await uploadMissingRemoteTaskAttachments(client, user.id, remoteTaskId, attachments);
+    summary.attachmentsFound += taskSummary.attachmentsFound;
+    summary.attachmentsUploaded += taskSummary.attachmentsUploaded;
+    summary.attachmentsSkipped += taskSummary.attachmentsSkipped;
+    summary.errors.push(...taskSummary.errors.map((message) => `${localTask.title || localTask.id}: ${message}`));
+  }
+
+  return summary;
+}
+
 function requireSupabaseClient(): SupabaseClient {
   const client = getSupabaseClient();
 
@@ -231,6 +332,24 @@ function resolveMigrationRemoteId(localTaskId: string, storedRemoteId?: string) 
   }
 
   return createId();
+}
+
+function resolveRemoteTaskIdForLocalTask(localTaskId: string, migratedLocalToRemoteIds: Record<string, string>, existingRemoteIds: Set<string>) {
+  const migratedRemoteId = migratedLocalToRemoteIds[localTaskId];
+
+  if (migratedRemoteId && existingRemoteIds.has(migratedRemoteId)) {
+    return migratedRemoteId;
+  }
+
+  if (isUuid(localTaskId) && existingRemoteIds.has(localTaskId)) {
+    return localTaskId;
+  }
+
+  return undefined;
+}
+
+function rememberAttachmentWarnings(result: RemoteAttachmentSyncResult) {
+  lastAttachmentSyncWarnings = result.errors;
 }
 
 function readStoredDefaultCalendarId(userId: string) {
@@ -277,3 +396,8 @@ function writeLocalStorage(key: string, value: string) {
     // Si el navegador bloquea storage, la sincronización sigue funcionando sin cache local.
   }
 }
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
