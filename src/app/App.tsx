@@ -45,6 +45,9 @@ export function App() {
     stats,
     isLoading,
     taskRepositoryMode,
+    activeCalendar,
+    activeCalendarPermission,
+    canWriteActiveCalendar,
     taskError,
     clearTaskError,
     createTask,
@@ -98,6 +101,8 @@ export function App() {
   }
 
   function openCreateTask(initialValues?: TaskFormValues | string, assistantNotice?: string, suggestedTimes?: string[]) {
+    if (!canWriteActiveCalendar) return;
+
     const values =
       typeof initialValues === 'string'
         ? { date: initialValues, time: '09:00' }
@@ -107,6 +112,8 @@ export function App() {
   }
 
   function openEditTask(task: Task) {
+    if (!canWriteActiveCalendar) return;
+
     if (isRecurringTask(task) || isVirtualOccurrence(task)) {
       setSeriesAction({ action: 'edit', task });
       return;
@@ -207,6 +214,7 @@ export function App() {
           onEditTask={openEditTask}
           onDeleteTask={handleDeleteTask}
           onToggleTask={handleToggleTaskCompleted}
+          canWriteTasks={canWriteActiveCalendar}
         />
       );
     }
@@ -219,6 +227,7 @@ export function App() {
           onEditTask={openEditTask}
           onDeleteTask={handleDeleteTask}
           onToggleTask={handleToggleTaskCompleted}
+          canWriteTasks={canWriteActiveCalendar}
         />
       );
     }
@@ -229,6 +238,7 @@ export function App() {
           onCreateDraft={(parsed) =>
             openCreateTask(parsed.draft, parsed.confirmationReasons.join(' '), parsed.detected.suggestedTimes)
           }
+          canWriteTasks={canWriteActiveCalendar}
         />
       );
     }
@@ -246,6 +256,7 @@ export function App() {
         onEditTask={openEditTask}
         onDeleteTask={handleDeleteTask}
         onToggleTask={handleToggleTaskCompleted}
+        canWriteTasks={canWriteActiveCalendar}
       />
     );
   }
@@ -279,6 +290,22 @@ export function App() {
       </header>
 
       <main className="mx-auto max-w-5xl space-y-5 px-4 pb-8 pt-2">
+        {taskRepositoryMode === 'remote' && activeCalendar ? (
+          <div className="aura-card flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
+            <div>
+              <p className="aura-label">{t('sharing.activeCalendar')}</p>
+              <p className="font-black text-slate-950 dark:text-white">
+                {activeCalendar.name} · {t(`sharing.role.${activeCalendarPermission?.role ?? activeCalendar.role}`)}
+              </p>
+            </div>
+            {!canWriteActiveCalendar ? (
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-900 dark:bg-amber-400/10 dark:text-amber-100">
+                {t('sharing.viewerReadonly')}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
         <StatsCard pending={stats.pending} completed={stats.completed} />
 
         {activeView !== 'assistant' ? <AssistantHero onMicClick={handleStartVoice} /> : null}
@@ -314,8 +341,9 @@ export function App() {
         <button
           type="button"
           onClick={() => openCreateTask(selectedDate)}
+          disabled={!canWriteActiveCalendar}
           className="aura-fab h-16 w-16"
-          aria-label={t('common.createTask')}
+          aria-label={canWriteActiveCalendar ? t('common.createTask') : t('sharing.insufficientPermission')}
         >
           <Icon name="plus" className="h-9 w-9" />
         </button>

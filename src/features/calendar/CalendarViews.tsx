@@ -10,6 +10,7 @@ interface CalendarCallbacks {
   onDeleteTask: (task: Task) => void;
   onToggleTask: (task: Task) => void;
   onCreateTask: (date?: string) => void;
+  canWriteTasks?: boolean;
 }
 
 interface MonthViewProps extends CalendarCallbacks {
@@ -30,6 +31,7 @@ export function MonthView({
   onEditTask,
   onDeleteTask,
   onToggleTask,
+  canWriteTasks = true,
 }: MonthViewProps) {
   const { language, t } = useI18n();
   const days = buildMonthGrid(monthDate, tasks);
@@ -63,7 +65,9 @@ export function MonthView({
                 key={day.value}
                 type="button"
                 onClick={() => onSelectDate(day.value)}
-                onDoubleClick={() => onCreateTask(day.value)}
+                onDoubleClick={() => {
+                  if (canWriteTasks) onCreateTask(day.value);
+                }}
                 className={`min-h-20 rounded-2xl border p-2 text-left transition ${
                   isSelected
                     ? 'border-cyan-300 bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25'
@@ -103,6 +107,7 @@ export function MonthView({
         onEditTask={onEditTask}
         onDeleteTask={onDeleteTask}
         onToggleTask={onToggleTask}
+        canWriteTasks={canWriteTasks}
       />
     </section>
   );
@@ -122,6 +127,7 @@ export function DayView({
   onEditTask,
   onDeleteTask,
   onToggleTask,
+  canWriteTasks = true,
 }: DayViewProps) {
   const { language, t } = useI18n();
   const selectedTasks = tasksForDate(tasks, selectedDate);
@@ -173,10 +179,11 @@ export function DayView({
               onEdit={onEditTask}
               onDelete={onDeleteTask}
               onToggleCompleted={onToggleTask}
+              canWrite={canWriteTasks}
             />
           ))
         ) : (
-          <EmptyState text={t('calendar.freeDay')} onCreate={() => onCreateTask(selectedDate)} />
+          <EmptyState text={t('calendar.freeDay')} onCreate={() => onCreateTask(selectedDate)} canCreate={canWriteTasks} />
         )}
       </div>
     </section>
@@ -187,7 +194,7 @@ interface AgendaViewProps extends CalendarCallbacks {
   tasks: Task[];
 }
 
-export function AgendaView({ tasks, onCreateTask, onEditTask, onDeleteTask, onToggleTask }: AgendaViewProps) {
+export function AgendaView({ tasks, onCreateTask, onEditTask, onDeleteTask, onToggleTask, canWriteTasks = true }: AgendaViewProps) {
   const { language, t } = useI18n();
   const agendaTasks = upcomingTasks(tasks);
 
@@ -208,12 +215,12 @@ export function AgendaView({ tasks, onCreateTask, onEditTask, onDeleteTask, onTo
               <p className="mb-2 ml-2 text-xs font-black uppercase tracking-[0.18em] text-cyan-700/70 dark:text-cyan-200/70">
                 {formatShortDate(task.date, language)}
               </p>
-              <TaskCard task={task} onEdit={onEditTask} onDelete={onDeleteTask} onToggleCompleted={onToggleTask} />
+              <TaskCard task={task} onEdit={onEditTask} onDelete={onDeleteTask} onToggleCompleted={onToggleTask} canWrite={canWriteTasks} />
             </div>
           ))}
         </div>
       ) : (
-        <EmptyState text={t('agenda.empty')} onCreate={() => onCreateTask()} />
+        <EmptyState text={t('agenda.empty')} onCreate={() => onCreateTask()} canCreate={canWriteTasks} />
       )}
     </section>
   );
@@ -227,9 +234,10 @@ interface TaskListProps {
   onEditTask: (task: Task) => void;
   onDeleteTask: (task: Task) => void;
   onToggleTask: (task: Task) => void;
+  canWriteTasks?: boolean;
 }
 
-function TaskList({ title, emptyText, tasks, onCreate, onEditTask, onDeleteTask, onToggleTask }: TaskListProps) {
+function TaskList({ title, emptyText, tasks, onCreate, onEditTask, onDeleteTask, onToggleTask, canWriteTasks = true }: TaskListProps) {
   const { t } = useI18n();
 
   return (
@@ -243,6 +251,7 @@ function TaskList({ title, emptyText, tasks, onCreate, onEditTask, onDeleteTask,
           type="button"
           onClick={onCreate}
           className="aura-primary text-sm"
+          disabled={!canWriteTasks}
         >
           {t('common.create')}
         </button>
@@ -255,10 +264,11 @@ function TaskList({ title, emptyText, tasks, onCreate, onEditTask, onDeleteTask,
             onEdit={onEditTask}
             onDelete={onDeleteTask}
             onToggleCompleted={onToggleTask}
+            canWrite={canWriteTasks}
           />
         ))
       ) : (
-        <EmptyState text={emptyText} onCreate={onCreate} />
+        <EmptyState text={emptyText} onCreate={onCreate} canCreate={canWriteTasks} />
       )}
     </div>
   );
@@ -267,9 +277,10 @@ function TaskList({ title, emptyText, tasks, onCreate, onEditTask, onDeleteTask,
 interface EmptyStateProps {
   text: string;
   onCreate: () => void;
+  canCreate?: boolean;
 }
 
-function EmptyState({ text, onCreate }: EmptyStateProps) {
+function EmptyState({ text, onCreate, canCreate = true }: EmptyStateProps) {
   const { t } = useI18n();
 
   return (
@@ -282,8 +293,9 @@ function EmptyState({ text, onCreate }: EmptyStateProps) {
         type="button"
         onClick={onCreate}
         className="aura-primary mt-4 text-sm"
+        disabled={!canCreate}
       >
-        {t('common.createTask')}
+        {canCreate ? t('common.createTask') : t('sharing.viewerReadonly')}
       </button>
     </div>
   );

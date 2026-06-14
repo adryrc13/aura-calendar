@@ -11,6 +11,12 @@ import {
   type TaskRepositoryMode,
 } from '../../infrastructure/tasks/taskRepositoryProvider';
 import { consumeRemoteAttachmentSyncWarnings } from '../../infrastructure/supabase/supabaseTaskRepository';
+import {
+  permissionForRole,
+  subscribeActiveCalendarChange,
+  supabaseSharingRepository,
+  type SharedCalendar,
+} from '../../infrastructure/supabase/supabaseSharingRepository';
 import { createId } from '../../shared/id';
 import { useI18n } from '../../shared/i18n';
 
@@ -59,6 +65,7 @@ export function useTasks() {
   const [isLoading, setIsLoading] = useState(true);
   const [taskRepositoryMode, setTaskRepositoryModeState] = useState<TaskRepositoryMode>(() => getTaskRepositoryMode());
   const [taskError, setTaskError] = useState('');
+  const [activeCalendar, setActiveCalendar] = useState<SharedCalendar | null>(null);
 
   useEffect(() => subscribeTaskRepositoryModeChange(setTaskRepositoryModeState), []);
 
@@ -71,6 +78,16 @@ export function useTasks() {
       const allTasks = await repository.getAll();
       setTasks(allTasks);
       setTaskError('');
+
+      if (taskRepositoryMode === 'remote') {
+        try {
+          setActiveCalendar(await supabaseSharingRepository.getActiveCalendar());
+        } catch {
+          setActiveCalendar(null);
+        }
+      } else {
+        setActiveCalendar(null);
+      }
     } catch (error) {
       const message = errorMessage(error);
 
@@ -91,6 +108,8 @@ export function useTasks() {
     reload();
   }, [reload]);
 
+  useEffect(() => subscribeActiveCalendarChange(() => reload()), [reload]);
+
   const createTask = useCallback(
     async (draft: TaskDraft) => {
       const now = new Date().toISOString();
@@ -105,6 +124,7 @@ export function useTasks() {
       };
 
       try {
+        assertCanWriteActiveCalendar(taskRepositoryMode, activeCalendar, t);
         await repository.upsert(task);
         await reload();
         showAttachmentWarnings(setTaskError, t);
@@ -113,7 +133,7 @@ export function useTasks() {
         throw setOperationError(t('task.error.create'), error, setTaskError);
       }
     },
-    [reload, repository, t],
+    [activeCalendar, reload, repository, taskRepositoryMode, t],
   );
 
   const updateTask = useCallback(
@@ -138,6 +158,7 @@ export function useTasks() {
       };
 
       try {
+        assertCanWriteActiveCalendar(taskRepositoryMode, activeCalendar, t);
         await repository.upsert(updatedTask);
         await reload();
         showAttachmentWarnings(setTaskError, t);
@@ -146,24 +167,26 @@ export function useTasks() {
         throw setOperationError(t('task.error.update'), error, setTaskError);
       }
     },
-    [reload, repository, tasks, t],
+    [activeCalendar, reload, repository, taskRepositoryMode, tasks, t],
   );
 
   const deleteTask = useCallback(
     async (id: string) => {
       try {
+        assertCanWriteActiveCalendar(taskRepositoryMode, activeCalendar, t);
         await repository.delete(id);
         await reload();
       } catch (error) {
         throw setOperationError(t('task.error.delete'), error, setTaskError);
       }
     },
-    [reload, repository, t],
+    [activeCalendar, reload, repository, taskRepositoryMode, t],
   );
 
   const toggleTaskCompleted = useCallback(
     async (task: Task) => {
       try {
+        assertCanWriteActiveCalendar(taskRepositoryMode, activeCalendar, t);
         if (isVirtualOccurrence(task) && task.sourceTaskId && task.occurrenceDate) {
           const series = tasks.find((item) => item.id === task.sourceTaskId);
 
@@ -194,12 +217,13 @@ export function useTasks() {
         throw setOperationError(t('task.error.toggle'), error, setTaskError);
       }
     },
-    [reload, repository, tasks, t],
+    [activeCalendar, reload, repository, taskRepositoryMode, tasks, t],
   );
 
   const deleteOccurrence = useCallback(
     async (task: Task) => {
       try {
+        assertCanWriteActiveCalendar(taskRepositoryMode, activeCalendar, t);
         if (!isVirtualOccurrence(task) || !task.sourceTaskId || !task.occurrenceDate) {
           if (isRecurringTask(task)) {
             await repository.upsert({
@@ -230,19 +254,23 @@ export function useTasks() {
         throw setOperationError(t('task.error.deleteOccurrence'), error, setTaskError);
       }
     },
-    [reload, repository, tasks, t],
+    [activeCalendar, reload, repository, taskRepositoryMode, tasks, t],
   );
 
   const stats = useMemo(() => {
     const pending = tasks.filter((task) => !task.completed).length;
     return { total: tasks.length, pending, completed: tasks.length - pending };
   }, [tasks]);
+  const activeCalendarPermission = activeCalendar ? permissionForRole(activeCalendar.role) : null;
 
   return {
     tasks,
     isLoading,
     stats,
     taskRepositoryMode,
+    activeCalendar,
+    activeCalendarPermission,
+    canWriteActiveCalendar: taskRepositoryMode === 'local' || (activeCalendarPermission?.canWriteTasks ?? false),
     taskError,
     clearTaskError: () => setTaskError(''),
     createTask,
@@ -257,6 +285,18 @@ function setOperationError(prefix: string, error: unknown, setTaskError: (messag
   const message = `${prefix} ${errorMessage(error)}`;
   setTaskError(message);
   return new Error(message);
+}
+
+function assertCanWriteActiveCalendar(
+  mode: TaskRepositoryMode,
+  activeCalendar: SharedCalendar | null,
+  t: (key: string, params?: Record<string, string>) => string,
+) {
+  if (mode === 'local') return;
+
+  if (!activeCalendar || permissionForRole(activeCalendar.role).canWriteTasks) return;
+
+  throw new Error(t('sharing.insufficientPermission'));
 }
 
 function showAttachmentWarnings(setTaskError: (message: string) => void, t: (key: string, params?: Record<string, string>) => string) {

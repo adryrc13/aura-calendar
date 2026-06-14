@@ -10,9 +10,10 @@ interface TaskCardProps {
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
   onToggleCompleted: (task: Task) => void;
+  canWrite?: boolean;
 }
 
-export function TaskCard({ task, onEdit, onDelete, onToggleCompleted }: TaskCardProps) {
+export function TaskCard({ task, onEdit, onDelete, onToggleCompleted, canWrite = true }: TaskCardProps) {
   const { language, t } = useI18n();
   const color = TASK_COLORS.find((item) => item.value === task.color) ?? TASK_COLORS[0];
 
@@ -22,12 +23,13 @@ export function TaskCard({ task, onEdit, onDelete, onToggleCompleted }: TaskCard
         <button
           type="button"
           onClick={() => onToggleCompleted(task)}
+          disabled={!canWrite}
           className={`mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full border-2 transition ${
             task.completed
               ? 'border-cyan-400 bg-cyan-500 text-white shadow-[0_0_18px_rgba(34,211,238,0.45)]'
               : 'border-cyan-400/70 text-transparent hover:border-cyan-300 hover:text-cyan-400 dark:border-cyan-300/70'
           }`}
-          aria-label={task.completed ? t('task.markPending') : t('task.markCompleted')}
+          aria-label={canWrite ? (task.completed ? t('task.markPending') : t('task.markCompleted')) : t('sharing.insufficientPermission')}
         >
           <Icon name="check" className="h-5 w-5" />
         </button>
@@ -81,6 +83,7 @@ export function TaskCard({ task, onEdit, onDelete, onToggleCompleted }: TaskCard
               type="button"
               onClick={() => onEdit(task)}
               className="aura-secondary px-4 py-2 text-sm"
+              disabled={!canWrite}
             >
               {t('common.edit')}
             </button>
@@ -88,9 +91,11 @@ export function TaskCard({ task, onEdit, onDelete, onToggleCompleted }: TaskCard
               type="button"
               onClick={() => onDelete(task)}
               className="aura-danger px-4 py-2 text-sm"
+              disabled={!canWrite}
             >
               {t('common.delete')}
             </button>
+            {!canWrite ? <span className="aura-muted self-center text-xs font-bold">{t('sharing.viewerReadonly')}</span> : null}
           </div>
         </div>
       </div>

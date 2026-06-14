@@ -24,6 +24,9 @@ const { runSupabaseTaskMapperInternalTests } = require('../src/infrastructure/su
 const {
   runSupabaseAttachmentRepositoryInternalTests,
 } = require('../src/infrastructure/supabase/supabaseAttachmentRepository.internalTests.ts');
+const {
+  runSupabaseSharingRepositoryInternalTests,
+} = require('../src/infrastructure/supabase/supabaseSharingRepository.internalTests.ts');
 const { runI18nInternalTests } = require('../src/shared/i18n/i18n.internalTests.ts');
 
 const results = [
@@ -33,6 +36,7 @@ const results = [
   ...runEnglishTaskParserInternalTests(),
   ...runSupabaseTaskMapperInternalTests(),
   ...runSupabaseAttachmentRepositoryInternalTests(),
+  ...runSupabaseSharingRepositoryInternalTests(),
   ...runI18nInternalTests(),
 ];
 const failed = results.filter((result) => !result.ok);

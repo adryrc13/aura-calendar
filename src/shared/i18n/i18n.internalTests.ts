@@ -56,6 +56,14 @@ export function runI18nInternalTests() {
       name: 'speech language follows selected language',
       ok: speechLanguageFor('es') === 'es-ES' && speechLanguageFor('en') === 'en-US',
     },
+    {
+      name: 'i18n ES/EN incluye textos de calendarios compartidos',
+      ok:
+        createTranslator('es')('sharing.sharedCalendars') === 'Calendarios compartidos' &&
+        createTranslator('en')('sharing.sharedCalendars') === 'Shared calendars' &&
+        createTranslator('es')('sharing.enableRemoteToShare').includes('sincronización remota') &&
+        createTranslator('en')('sharing.enableRemoteToShare').includes('remote sync'),
+    },
   ];
 
   return cases;

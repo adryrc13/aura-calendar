@@ -7,9 +7,10 @@ import { useVoiceRecognition } from './useVoiceRecognition';
 
 interface AssistantPanelProps {
   onCreateDraft: (parsed: ParsedTaskCommand) => void;
+  canWriteTasks?: boolean;
 }
 
-export function AssistantPanel({ onCreateDraft }: AssistantPanelProps) {
+export function AssistantPanel({ onCreateDraft, canWriteTasks = true }: AssistantPanelProps) {
   const { language, t } = useI18n();
   const [textCommand, setTextCommand] = useState('');
   const [lastParsed, setLastParsed] = useState<ParsedTaskCommand | null>(null);
@@ -19,7 +20,9 @@ export function AssistantPanel({ onCreateDraft }: AssistantPanelProps) {
 
     const parsed = parseTaskCommand(command, language);
     setLastParsed(parsed);
-    onCreateDraft(parsed);
+    if (canWriteTasks) {
+      onCreateDraft(parsed);
+    }
   }
 
   const helperText = useMemo(() => {
@@ -52,7 +55,7 @@ export function AssistantPanel({ onCreateDraft }: AssistantPanelProps) {
         </div>
       </div>
 
-      <VoiceCommandButton onTranscript={handleParse} />
+      <VoiceCommandButton onTranscript={handleParse} disabled={!canWriteTasks} />
 
       <div className="aura-card p-5">
         <label className="aura-label" htmlFor="assistant-command">
@@ -68,10 +71,10 @@ export function AssistantPanel({ onCreateDraft }: AssistantPanelProps) {
         <button
           type="button"
           onClick={() => handleParse(textCommand)}
-          disabled={!textCommand.trim()}
+          disabled={!textCommand.trim() || !canWriteTasks}
           className="aura-primary mt-4 w-full"
         >
-          {t('assistant.parseAndOpen')}
+          {canWriteTasks ? t('assistant.parseAndOpen') : t('sharing.viewerReadonly')}
         </button>
         <p className="aura-muted mt-3 text-sm">{helperText}</p>
       </div>
@@ -135,9 +138,10 @@ function DetectedField({ label, value, className = '' }: { label: string; value:
 
 interface VoiceCommandButtonProps {
   onTranscript: (transcript: string) => void;
+  disabled?: boolean;
 }
 
-export function VoiceCommandButton({ onTranscript }: VoiceCommandButtonProps) {
+export function VoiceCommandButton({ onTranscript, disabled = false }: VoiceCommandButtonProps) {
   const { t } = useI18n();
   const [isListening, setIsListening] = useState(false);
   const [status, setStatus] = useState(t('assistant.listenReady'));
@@ -152,11 +156,15 @@ export function VoiceCommandButton({ onTranscript }: VoiceCommandButtonProps) {
       <button
         type="button"
         onClick={() =>
+          disabled
+            ? undefined
+            :
           startListening((message, voiceStatus) => {
             setStatus(message);
             setIsListening(voiceStatus === 'listening');
           })
         }
+        disabled={disabled}
         className={`flex w-full items-center justify-center gap-3 rounded-3xl px-5 py-5 text-lg font-black text-white shadow-aura transition hover:scale-[1.01] ${
           isListening ? 'bg-rose-500' : 'bg-gradient-to-r from-cyan-500 to-blue-600'
         }`}
@@ -164,7 +172,7 @@ export function VoiceCommandButton({ onTranscript }: VoiceCommandButtonProps) {
         <span className="grid h-12 w-12 place-items-center rounded-full border border-white/35 bg-white/10">
           <Icon name="mic" className="h-7 w-7" />
         </span>
-        {isListening ? t('assistant.listening') : t('assistant.useMicrophone')}
+        {disabled ? t('sharing.viewerReadonly') : isListening ? t('assistant.listening') : t('assistant.useMicrophone')}
       </button>
       <p className="aura-muted mt-3 text-sm">{status}</p>
     </div>

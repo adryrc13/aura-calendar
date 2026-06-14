@@ -108,11 +108,10 @@ export function shouldUploadAttachment(attachment: TaskAttachment) {
   return canUploadAttachmentToStorage(attachment);
 }
 
-export async function listRemoteAttachmentsForTask(client: SupabaseClient, ownerId: string, taskId: string) {
+export async function listRemoteAttachmentsForTask(client: SupabaseClient, _ownerId: string, taskId: string) {
   const { data, error } = await client
     .from('task_attachments')
     .select('*')
-    .eq('owner_id', ownerId)
     .eq('task_id', taskId)
     .order('created_at', { ascending: true });
 
@@ -123,13 +122,12 @@ export async function listRemoteAttachmentsForTask(client: SupabaseClient, owner
   return (data ?? []) as SupabaseTaskAttachmentRow[];
 }
 
-export async function listRemoteAttachmentsForTasks(client: SupabaseClient, ownerId: string, taskIds: string[]) {
+export async function listRemoteAttachmentsForTasks(client: SupabaseClient, _ownerId: string, taskIds: string[]) {
   if (!taskIds.length) return [];
 
   const { data, error } = await client
     .from('task_attachments')
     .select('*')
-    .eq('owner_id', ownerId)
     .in('task_id', taskIds)
     .order('created_at', { ascending: true });
 
@@ -309,7 +307,7 @@ export async function deleteRemoteAttachment(client: SupabaseClient, row: Supaba
     if (error) errors.push(`Storage: ${error.message}`);
   }
 
-  const { error } = await client.from('task_attachments').delete().eq('id', row.id).eq('owner_id', row.owner_id);
+  const { error } = await client.from('task_attachments').delete().eq('id', row.id);
   if (error) errors.push(`metadata: ${error.message}`);
 
   if (errors.length) {

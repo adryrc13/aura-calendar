@@ -21,6 +21,7 @@ import {
   type SupabaseCalendarRow,
   type SupabaseTaskRow,
 } from './supabaseTaskMapper';
+import { subscribeActiveCalendarChange, supabaseSharingRepository } from './supabaseSharingRepository';
 import { createId } from '../../shared/id';
 
 export interface TaskMigrationSummary {
@@ -49,12 +50,12 @@ export const supabaseTaskRepository: TaskRepository = {
   async getAll() {
     const client = requireSupabaseClient();
     const user = await requireSupabaseUser(client);
-    await ensureDefaultRemoteCalendar(client, user);
+    const activeCalendar = await supabaseSharingRepository.getActiveCalendar(client, user);
 
     const { data, error } = await client
       .from('tasks')
       .select('*')
-      .eq('owner_id', user.id)
+      .eq('calendar_id', activeCalendar.id)
       .order('date', { ascending: true })
       .order('time', { ascending: true });
 
@@ -81,8 +82,8 @@ export const supabaseTaskRepository: TaskRepository = {
   async upsert(task: Task) {
     const client = requireSupabaseClient();
     const user = await requireSupabaseUser(client);
-    const calendar = await ensureDefaultRemoteCalendar(client, user);
-    const row = taskToSupabaseRow(task, user.id, task.calendarId ?? calendar.id);
+    const calendar = await supabaseSharingRepository.getActiveCalendar(client, user);
+    const row = taskToSupabaseRow(task, task.ownerId ?? user.id, task.calendarId ?? calendar.id);
 
     const { error } = await client.from('tasks').upsert(row, { onConflict: 'id' });
 
@@ -95,7 +96,7 @@ export const supabaseTaskRepository: TaskRepository = {
         ...task,
         id: row.id,
         calendarId: row.calendar_id,
-        ownerId: user.id,
+        ownerId: row.owner_id,
       });
       rememberAttachmentWarnings(syncResult);
     } catch (syncError) {
@@ -112,13 +113,15 @@ export const supabaseTaskRepository: TaskRepository = {
       throw new Error(`No pudimos eliminar todos los adjuntos remotos: ${attachmentErrors.join(' ')}`);
     }
 
-    const { error } = await client.from('tasks').delete().eq('id', id).eq('owner_id', user.id);
+    const { error } = await client.from('tasks').delete().eq('id', id);
 
     if (error) {
       throw new Error(`No pudimos eliminar la tarea remota: ${error.message}`);
     }
   },
 };
+
+export { subscribeActiveCalendarChange };
 
 export function consumeRemoteAttachmentSyncWarnings() {
   const warnings = lastAttachmentSyncWarnings;

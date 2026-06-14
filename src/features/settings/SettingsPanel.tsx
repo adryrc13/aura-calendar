@@ -9,6 +9,7 @@ import {
   type NotificationPermissionState,
 } from '../../infrastructure/notifications/browserNotifications';
 import { AccountSyncPanel } from './AccountSyncPanel';
+import { SharedCalendarsPanel } from './SharedCalendarsPanel';
 
 export function SettingsPanel() {
   const { theme, toggleTheme } = useTheme();
@@ -40,6 +41,8 @@ export function SettingsPanel() {
       </div>
 
       <AccountSyncPanel />
+
+      <SharedCalendarsPanel />
 
       <div className="aura-card p-5">
         <div className="flex items-center justify-between gap-4">
