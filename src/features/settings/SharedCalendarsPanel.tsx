@@ -264,13 +264,15 @@ export function SharedCalendarsPanel() {
                 >
                   {t('sharing.accept')}
                 </button>
-                <button
-                  type="button"
-                  className="aura-secondary px-3 py-2 text-sm"
-                  onClick={() => void runAction(() => supabaseSharingRepository.rejectInvitation(invitation.id), 'sharing.invitationDeclined')}
-                >
-                  {t('sharing.reject')}
-                </button>
+                {invitation.status === 'pending' ? (
+                  <button
+                    type="button"
+                    className="aura-secondary px-3 py-2 text-sm"
+                    onClick={() => void runAction(() => supabaseSharingRepository.rejectInvitation(invitation.id), 'sharing.invitationDeclined')}
+                  >
+                    {t('sharing.reject')}
+                  </button>
+                ) : null}
               </div>
             </div>
           ))

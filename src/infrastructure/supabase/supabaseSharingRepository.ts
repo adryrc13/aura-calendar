@@ -5,7 +5,9 @@ import type { SupabaseCalendarRow } from './supabaseTaskMapper';
 import {
   mapCalendarWithRole,
   mapCalendarsWithMemberships,
+  filterRecoverableReceivedInvitations,
   permissionForRole,
+  ACCEPT_INVITATION_RPC,
   type CalendarInvitation,
   type CalendarInvitationRow,
   type CalendarMember,
@@ -37,29 +39,44 @@ export const supabaseSharingRepository = {
     const currentUser = user ?? (await requireSupabaseUser(client));
     await ensurePersonalCalendar(client, currentUser);
 
-    const { data: calendarRows, error: calendarError } = await client
+    const { data: ownCalendarRows, error: ownCalendarError } = await client
       .from('calendars')
       .select('*')
+      .eq('owner_id', currentUser.id)
       .order('created_at', { ascending: true });
 
-    if (calendarError) {
-      throw new Error(`No pudimos listar calendarios: ${calendarError.message}`);
+    if (ownCalendarError) {
+      throw new Error(`No pudimos listar calendarios propios: ${ownCalendarError.message}`);
     }
-
-    const calendars = (calendarRows ?? []) as SupabaseCalendarRow[];
-    if (!calendars.length) return [];
 
     const { data: memberRows, error: memberError } = await client
       .from('calendar_members')
       .select('*')
-      .eq('user_id', currentUser.id)
-      .in('calendar_id', calendars.map((calendar) => calendar.id));
+      .eq('user_id', currentUser.id);
 
     if (memberError) {
       throw new Error(`No pudimos leer membresias de calendarios: ${memberError.message}`);
     }
 
-    return mapCalendarsWithMemberships(calendars, (memberRows ?? []) as CalendarMemberRow[], currentUser.id);
+    const memberships = (memberRows ?? []) as CalendarMemberRow[];
+    const calendarIds = [...new Set([...(ownCalendarRows ?? []).map((calendar) => calendar.id), ...memberships.map((member) => member.calendar_id)])];
+    let sharedCalendarRows: SupabaseCalendarRow[] = [];
+
+    if (calendarIds.length) {
+      const { data: calendarRows, error: calendarError } = await client
+        .from('calendars')
+        .select('*')
+        .in('id', calendarIds)
+        .order('created_at', { ascending: true });
+
+      if (calendarError) {
+        throw new Error(`No pudimos listar calendarios compartidos: ${calendarError.message}`);
+      }
+
+      sharedCalendarRows = (calendarRows ?? []) as SupabaseCalendarRow[];
+    }
+
+    return mapCalendarsWithMemberships([...(ownCalendarRows ?? []), ...sharedCalendarRows], memberships, currentUser.id);
   },
 
   async getActiveCalendar(client = requireSupabaseClient(), user?: User): Promise<SharedCalendar> {
@@ -126,7 +143,7 @@ export const supabaseSharingRepository = {
         token: createId(),
       })
       .select('*')
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
       throw new Error(`No pudimos crear la invitacion: ${error?.message ?? 'respuesta vacia'}`);
@@ -159,7 +176,7 @@ export const supabaseSharingRepository = {
     const { data, error } = await client
       .from('calendar_invitations')
       .select('*')
-      .eq('status', 'pending')
+      .in('status', ['pending', 'accepted'])
       .ilike('invited_email', email)
       .order('created_at', { ascending: false });
 
@@ -167,7 +184,25 @@ export const supabaseSharingRepository = {
       throw new Error(`No pudimos leer invitaciones recibidas: ${error.message}`);
     }
 
-    const invitations = ((data ?? []) as CalendarInvitationRow[]).map(mapInvitation);
+    const invitationRows = (data ?? []) as CalendarInvitationRow[];
+    const calendarIds = [...new Set(invitationRows.map((invitation) => invitation.calendar_id))];
+    let memberships: CalendarMemberRow[] = [];
+
+    if (calendarIds.length) {
+      const { data: memberRows, error: memberError } = await client
+        .from('calendar_members')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .in('calendar_id', calendarIds);
+
+      if (memberError) {
+        throw new Error(`No pudimos comprobar membresias de invitaciones: ${memberError.message}`);
+      }
+
+      memberships = (memberRows ?? []) as CalendarMemberRow[];
+    }
+
+    const invitations = filterRecoverableReceivedInvitations(invitationRows, memberships, currentUser.id).map(mapInvitation);
     const calendarNames = await listCalendarNamesById(client, invitations.map((invitation) => invitation.calendarId));
 
     return invitations.map((invitation) => ({
@@ -186,23 +221,20 @@ export const supabaseSharingRepository = {
 
   async acceptInvitation(invitation: Pick<CalendarInvitation, 'id' | 'calendarId' | 'role'>, client = requireSupabaseClient()) {
     const user = await requireSupabaseUser(client);
-    const accepted = await updateInvitationStatus(client, invitation.id, 'accepted', new Date().toISOString());
-    const { error } = await client.from('calendar_members').upsert(
-      {
-        calendar_id: invitation.calendarId,
-        user_id: user.id,
-        role: invitation.role,
-      },
-      { onConflict: 'calendar_id,user_id' },
-    );
+    const { data, error } = await client.rpc(ACCEPT_INVITATION_RPC, { invitation_id: invitation.id });
+    const acceptedRow = Array.isArray(data) ? data[0] : data;
 
-    if (error) {
-      throw new Error(`La invitacion se acepto, pero no pudimos crear la membresia: ${error.message}`);
+    if (error || !acceptedRow) {
+      throw new Error(
+        `No pudimos aceptar la invitacion ni crear la membresia: ${
+          error?.message ?? 'respuesta vacia. Volve a ejecutar supabase/sharing.sql en Supabase.'
+        }`,
+      );
     }
 
     storeActiveCalendarId(user.id, invitation.calendarId);
     notifyActiveCalendarChange(invitation.calendarId);
-    return accepted;
+    return mapInvitation(acceptedRow as CalendarInvitationRow);
   },
 
   async changeMemberRole(memberId: string, role: InvitationRole, client = requireSupabaseClient()) {
@@ -281,10 +313,10 @@ async function updateInvitationStatus(client: SupabaseClient, invitationId: stri
     })
     .eq('id', invitationId)
     .select('*')
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
-    throw new Error(`No pudimos actualizar la invitacion: ${error?.message ?? 'respuesta vacia'}`);
+    throw new Error(`No pudimos actualizar la invitacion: ${error?.message ?? 'no encontramos una invitacion visible para actualizar'}`);
   }
 
   return mapInvitation(data as CalendarInvitationRow);
@@ -347,7 +379,7 @@ async function ensurePersonalCalendar(client: SupabaseClient, user: User): Promi
       color: '#22d3ee',
     })
     .select('*')
-    .single();
+    .maybeSingle();
 
   if (createError || !createdCalendar) {
     throw new Error(`No pudimos crear el calendario remoto Personal: ${createError?.message ?? 'respuesta vacia'}`);

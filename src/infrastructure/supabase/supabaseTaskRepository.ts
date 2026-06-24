@@ -172,7 +172,7 @@ export async function ensureDefaultRemoteCalendar(client = requireSupabaseClient
       color: '#22d3ee',
     })
     .select('*')
-    .single();
+    .maybeSingle();
 
   if (createError || !createdCalendar) {
     throw new Error(`No pudimos crear el calendario remoto Personal: ${createError?.message ?? 'respuesta vacía'}`);

@@ -3,6 +3,7 @@ import type { SupabaseCalendarRow } from './supabaseTaskMapper';
 export type CalendarRole = 'owner' | 'editor' | 'viewer';
 export type InvitationRole = Exclude<CalendarRole, 'owner'>;
 export type InvitationStatus = 'pending' | 'accepted' | 'declined' | 'cancelled';
+export const ACCEPT_INVITATION_RPC = 'accept_calendar_invitation';
 
 export interface CalendarMember {
   id: string;
@@ -75,9 +76,11 @@ export function mapCalendarsWithMemberships(
   members: CalendarMemberRow[],
   currentUserId: string,
 ): SharedCalendar[] {
-  const roleByCalendarId = new Map(members.map((member) => [member.calendar_id, member.role]));
+  const roleByCalendarId = new Map(
+    members.filter((member) => member.user_id === currentUserId).map((member) => [member.calendar_id, member.role]),
+  );
 
-  return calendars
+  return uniqueCalendarsById(calendars)
     .map((calendar) => mapCalendarWithRole(calendar, roleByCalendarId.get(calendar.id) ?? (calendar.owner_id === currentUserId ? 'owner' : undefined), currentUserId))
     .filter((calendar): calendar is SharedCalendar => Boolean(calendar));
 }
@@ -106,4 +109,28 @@ export function permissionForRole(role: CalendarRole): CalendarPermission {
     canManageMembers: role === 'owner',
     canDeleteCalendar: role === 'owner',
   };
+}
+
+export function uniqueCalendarsById(calendars: SupabaseCalendarRow[]): SupabaseCalendarRow[] {
+  const byId = new Map<string, SupabaseCalendarRow>();
+
+  for (const calendar of calendars) {
+    if (!byId.has(calendar.id)) {
+      byId.set(calendar.id, calendar);
+    }
+  }
+
+  return [...byId.values()];
+}
+
+export function filterRecoverableReceivedInvitations(
+  invitations: CalendarInvitationRow[],
+  memberships: CalendarMemberRow[],
+  currentUserId: string,
+): CalendarInvitationRow[] {
+  const memberCalendarIds = new Set(
+    memberships.filter((member) => member.user_id === currentUserId).map((member) => member.calendar_id),
+  );
+
+  return invitations.filter((invitation) => invitation.status === 'pending' || !memberCalendarIds.has(invitation.calendar_id));
 }
