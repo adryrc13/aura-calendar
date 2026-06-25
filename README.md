@@ -1,42 +1,22 @@
 # Aura Calendar
 
-Aura Calendar es una PWA mobile-first para calendario personal y tareas. Funciona localmente con IndexedDB/Dexie y, desde Fase 4A, puede conectarse de forma opcional a Supabase Auth para preparar usuarios y sincronización futura.
+Aura Calendar es una PWA mobile-first para calendario personal y tareas. Funciona en modo local con IndexedDB/Dexie y, si configurás Supabase, también permite autenticación, sincronización remota, adjuntos remotos y calendarios compartidos con roles.
 
-## Quick path
+## Instalación y ejecución
 
 ```bash
 npm install
 npm run dev
+npm run test:internal
 npm run build
 npm run preview
 ```
 
-La app sigue funcionando sin Supabase configurado.
+La app sigue funcionando sin Supabase configurado: el modo local con Dexie es el respaldo seguro y no borra datos locales al activar Supabase.
 
-## Estado actual
+## Configuración de Supabase
 
-| Área | Estado |
-|---|---|
-| Tareas locales | Crear, editar, eliminar, completar y persistir en IndexedDB |
-| Repeticiones | Avanzadas: diaria, semanal, mensual, anual, días alternos, cada X días/semanas |
-| Adjuntos | Locales en IndexedDB: archivos, links y notas |
-| Asistente | Voz/texto con parser local en español |
-| Tema | Modo claro/oscuro |
-| Supabase | Auth opcional y schema SQL preparado |
-| Sincronización remota | Pendiente para la siguiente fase |
-
-## Configurar Supabase
-
-### 1. Crear proyecto
-
-1. Entrá a Supabase y creá un proyecto.
-2. En **Project Settings → API**, copiá:
-   - **Project URL**
-   - **anon public key**
-
-No uses ni subas claves privadas como `service_role`.
-
-### 2. Crear `.env.local`
+### 1. Crear `.env.local`
 
 Copiá el ejemplo:
 
@@ -44,45 +24,75 @@ Copiá el ejemplo:
 cp .env.local.example .env.local
 ```
 
-Completá:
+Completá solo claves públicas del frontend:
 
 ```env
 VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
 VITE_SUPABASE_ANON_KEY=tu-anon-key
 ```
 
-`.env.local` está ignorado por Git. No lo subas al repositorio.
+`.env.local` está ignorado por Git. No subas claves reales, tokens privados ni `service_role`.
 
-### 3. Ejecutar schema SQL
+### 2. Ejecutar SQL en Supabase
 
-1. Abrí **SQL Editor** en Supabase.
-2. Pegá y ejecutá `supabase/schema.sql`.
-3. Verificá que existan:
-   - `profiles`
-   - `calendars`
-   - `tasks`
-   - `task_attachments`
+En **Supabase SQL Editor**, ejecutar en este orden:
 
-El SQL activa RLS y crea políticas básicas para que cada usuario vea y modifique solo sus propios datos.
+1. `supabase/schema.sql`
+2. `supabase/storage.sql`
+3. `supabase/sharing.sql`
 
-## Cuenta y sincronización
+El orden importa: `sharing.sql` extiende las policies base para calendarios compartidos y asume que schema/storage ya existen.
 
-En **Ajustes → Cuenta y sincronización** la app muestra:
+## Estado implementado
 
-- Modo local activo.
-- Supabase configurado / no configurado.
-- Usuario conectado / no conectado.
-- Acciones de registro, login y logout.
+| Área | Estado |
+|---|---|
+| Tareas | Crear, editar, completar, eliminar y persistir |
+| Vistas | Hoy, Calendario y Agenda |
+| Tema | Modo claro/oscuro |
+| Recurrencias | Diaria, semanal, mensual, anual, alternos, cada X días/semanas y excepciones |
+| Adjuntos locales | Archivos, links y notas en IndexedDB |
+| Supabase Auth | Login/registro opcional |
+| Supabase Database | Sincronización remota opt-in de tareas |
+| Supabase Storage | Bucket privado para adjuntos remotos |
+| Calendarios compartidos | Roles owner/editor/viewer e invitaciones |
+| i18n | Español/Inglés con persistencia de idioma |
+| Asistente | Parser local ES/EN por texto y Web Speech API si el navegador lo soporta |
+| PWA | `manifest.webmanifest`, `offline.html` y service worker de producción |
+| Tests internos | `npm run test:internal` |
 
-La sincronización remota de tareas todavía no está activa: Dexie sigue siendo la fuente de datos en Fase 4A.
+## Seguridad y permisos
 
-## PWA Android
+- Usar solo `VITE_SUPABASE_ANON_KEY` en frontend.
+- Nunca usar ni subir `service_role`.
+- No commitear `.env.local`.
+- RLS permanece activo en tablas públicas y Storage.
+- El bucket `task-attachments` es privado.
+- Los adjuntos remotos se descargan mediante Supabase Storage, no con URLs públicas permanentes.
+- `viewer`: solo lectura.
+- `editor`: puede crear/editar/completar/eliminar tareas y adjuntos en calendarios compartidos.
+- `owner`: gestiona calendario, miembros e invitaciones.
 
-Para probar como PWA en Android:
+## Modo local/remoto
 
-1. Abrí la URL local o publicada en Chrome Android.
-2. Tocá el menú del navegador.
-3. Elegí **Agregar a pantalla principal** o **Instalar app**.
+- Modo local: Dexie/IndexedDB, sin requerir Supabase.
+- Modo remoto: Supabase Auth + Database + Storage.
+- La migración local → Supabase evita duplicados y conserva datos locales.
+- Si Supabase falla al cargar tareas remotas, la UI informa el error y vuelve a modo local.
+
+## PWA y preparación Android
+
+La app está preparada como PWA básica. La integración nativa Android todavía no está implementada.
+
+Pendiente para próximas fases:
+
+- Capacitor.
+- Android Studio.
+- Notificaciones nativas Android.
+- Build APK/AAB.
+- Publicación en Play Store si aplica.
+
+No instalar Capacitor hasta iniciar explícitamente esa fase.
 
 ## Stack
 
@@ -91,24 +101,7 @@ Para probar como PWA en Android:
 | UI | React + TypeScript + Vite |
 | Estilos | Tailwind CSS, diseño mobile-first |
 | Persistencia local | IndexedDB con Dexie |
-| Auth remoto | Supabase Auth opcional |
-| DB remota | Schema preparado en Supabase Postgres |
-| Storage remoto | Preparado con `storage_path`, pendiente de implementación |
-| PWA | `manifest.webmanifest` + service worker manual |
-| Voz | Web Speech API cuando el navegador la soporte |
-
-## Seguridad
-
-- Usar solo `VITE_SUPABASE_ANON_KEY` en frontend.
-- Nunca subir `.env.local`.
-- No usar `service_role` en Vite/React.
-- RLS está activado en `profiles`, `calendars`, `tasks` y `task_attachments`.
-
-## Próximas fases
-
-| Fase | Pendiente |
-|---|---|
-| Fase 4B | Sincronización remota de tareas con Supabase Database |
-| Fase 4C | Migración de adjuntos locales a Supabase Storage |
-| Fase 5 | Calendario compartido y roles owner/editor/solo lectura |
-| Fase 6 | Capacitor, APK/AAB y notificaciones nativas Android |
+| Backend opcional | Supabase Auth, Postgres y Storage |
+| PWA | Manifest + service worker manual |
+| Voz | Web Speech API cuando está disponible |
+| IA externa | No se usa; el asistente es local |

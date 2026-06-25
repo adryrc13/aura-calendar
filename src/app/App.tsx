@@ -262,6 +262,12 @@ export function App() {
   }
 
   function handleStartVoice() {
+    if (!canWriteActiveCalendar) {
+      setActiveView('assistant');
+      setVoiceStatus(t('sharing.viewerReadonly'));
+      return;
+    }
+
     startListening((message, status) => {
       setVoiceStatus(message);
       if (status === 'unsupported') {
@@ -308,7 +314,7 @@ export function App() {
 
         <StatsCard pending={stats.pending} completed={stats.completed} />
 
-        {activeView !== 'assistant' ? <AssistantHero onMicClick={handleStartVoice} /> : null}
+        {activeView !== 'assistant' ? <AssistantHero onMicClick={handleStartVoice} disabled={!canWriteActiveCalendar} /> : null}
 
         {voiceStatus ? (
           <div className="aura-alert">
@@ -332,8 +338,9 @@ export function App() {
         <button
           type="button"
           onClick={handleStartVoice}
+          disabled={!canWriteActiveCalendar}
           className="aura-fab h-14 w-14"
-          aria-label={t('app.voiceCreate')}
+          aria-label={canWriteActiveCalendar ? t('app.voiceCreate') : t('sharing.insufficientPermission')}
         >
           <Icon name="mic" className="h-7 w-7" />
         </button>
@@ -516,7 +523,7 @@ function StatItem({ icon, value, label }: { icon: IconName; value: number; label
   );
 }
 
-function AssistantHero({ onMicClick }: { onMicClick: () => void }) {
+function AssistantHero({ onMicClick, disabled = false }: { onMicClick: () => void; disabled?: boolean }) {
   const { t } = useI18n();
   return (
     <section className="aura-card relative overflow-hidden p-5">
@@ -533,8 +540,9 @@ function AssistantHero({ onMicClick }: { onMicClick: () => void }) {
         <button
           type="button"
           onClick={onMicClick}
+          disabled={disabled}
           className="aura-fab hidden h-20 w-20 shrink-0 sm:grid"
-          aria-label={t('app.voiceCreate')}
+          aria-label={disabled ? t('sharing.insufficientPermission') : t('app.voiceCreate')}
         >
           <Icon name="mic" className="h-9 w-9" />
         </button>

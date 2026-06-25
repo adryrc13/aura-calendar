@@ -165,7 +165,7 @@ button {
     border: 1px solid rgba(34, 211, 238, 0.75);
     background: radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.24), transparent 36%), rgba(3, 13, 30, 0.82);
     box-shadow: 0 16px 48px rgba(14, 165, 233, 0.34), 0 0 0 6px rgba(14, 165, 233, 0.08);
-    @apply grid place-items-center rounded-full text-white transition hover:scale-105 active:scale-95 dark:bg-slate-950;
+    @apply grid place-items-center rounded-full text-white transition hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 dark:bg-slate-950;
   }
 
   .aura-nav-shell {
