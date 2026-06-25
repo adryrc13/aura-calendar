@@ -286,17 +286,17 @@ export function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl space-y-5 px-4 pb-8 pt-2">
+      <main className={`mx-auto max-w-5xl space-y-5 px-4 pt-2 ${activeView === 'settings' ? 'pb-44' : 'pb-36'}`}>
         {taskRepositoryMode === 'remote' && activeCalendar ? (
-          <div className="aura-card flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
-            <div>
+          <div className="aura-card flex items-center justify-between gap-3 px-4 py-3 text-sm">
+            <div className="min-w-0 flex-1">
               <p className="aura-label">{t('sharing.activeCalendar')}</p>
-              <p className="font-black text-slate-950 dark:text-white">
+              <p className="truncate font-black text-slate-950 dark:text-white">
                 {activeCalendar.name} · {t(`sharing.role.${activeCalendarPermission?.role ?? activeCalendar.role}`)}
               </p>
             </div>
             {!canWriteActiveCalendar ? (
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-900 dark:bg-amber-400/10 dark:text-amber-100">
+              <span className="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-900 dark:bg-amber-400/10 dark:text-amber-100">
                 {t('sharing.viewerReadonly')}
               </span>
             ) : null}
@@ -325,6 +325,7 @@ export function App() {
         {renderActiveView()}
       </main>
 
+      {activeView !== 'settings' ? (
       <div className="fixed bottom-28 right-4 z-30 flex items-center gap-3 lg:right-[calc((100vw-64rem)/2+1rem)]">
         <button
           type="button"
@@ -346,6 +347,7 @@ export function App() {
           <Icon name="plus" className="h-9 w-9" />
         </button>
       </div>
+      ) : null}
 
       <nav className="fixed inset-x-0 bottom-0 z-20 px-3 pb-[max(env(safe-area-inset-bottom),0.65rem)] pt-2">
         <div className="aura-nav-shell mx-auto grid max-w-5xl grid-cols-5 gap-1 p-2">

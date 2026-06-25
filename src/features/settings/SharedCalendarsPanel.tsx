@@ -119,23 +119,23 @@ export function SharedCalendarsPanel() {
 
   if (!isRemoteReady) {
     return (
-      <div className="aura-card p-5">
+      <div className="aura-card p-4">
         <p className="aura-label">{t('sharing.title')}</p>
         <h3 className="mt-1 text-xl font-black text-slate-950 dark:text-white">{t('sharing.sharedCalendars')}</h3>
-        <p className="aura-muted mt-3 text-sm leading-relaxed">{t('sharing.enableRemoteToShare')}</p>
+        <p className="aura-muted mt-2 text-xs leading-relaxed">{t('sharing.enableRemoteToShare')}</p>
       </div>
     );
   }
 
   return (
-    <div className="aura-card p-5">
+    <div className="aura-card p-4">
       <div className="flex items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <p className="aura-label">{t('sharing.title')}</p>
           <h3 className="mt-1 text-xl font-black text-slate-950 dark:text-white">{t('sharing.sharedCalendars')}</h3>
-          <p className="aura-muted mt-2 text-sm">{t('sharing.description')}</p>
+          <p className="aura-muted mt-1 text-xs">{t('sharing.description')}</p>
         </div>
-        <button type="button" className="aura-secondary text-sm" onClick={loadSharing} disabled={isBusy}>
+        <button type="button" className="aura-secondary px-4 py-2 text-sm" onClick={loadSharing} disabled={isBusy}>
           {t('sharing.refresh')}
         </button>
       </div>
@@ -146,7 +146,7 @@ export function SharedCalendarsPanel() {
         </label>
         <select
           id="active-calendar"
-          className="aura-input mt-2"
+          className="aura-input mt-2 truncate text-sm"
           value={activeCalendar?.id ?? ''}
           onChange={(event) => void handleSelectCalendar(event.target.value)}
         >
@@ -167,7 +167,7 @@ export function SharedCalendarsPanel() {
       ) : null}
 
       {canManage && activeCalendar ? (
-        <form onSubmit={handleInvite} className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+        <form onSubmit={handleInvite} className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
           <input
             className="aura-input"
             type="email"
@@ -180,7 +180,7 @@ export function SharedCalendarsPanel() {
             <option value="viewer">{t('sharing.role.viewer')}</option>
             <option value="editor">{t('sharing.role.editor')}</option>
           </select>
-          <button type="submit" className="aura-primary" disabled={isBusy}>
+          <button type="submit" className="aura-primary px-4 py-2 text-sm" disabled={isBusy}>
             {t('sharing.inviteUser')}
           </button>
         </form>
@@ -190,7 +190,7 @@ export function SharedCalendarsPanel() {
         {members.length ? (
           members.map((member) => (
             <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-cyan-500/10 bg-white/60 p-3 text-sm dark:bg-slate-950/35">
-              <span className="font-bold text-slate-900 dark:text-white">{member.email ?? member.userId}</span>
+              <span className="min-w-0 flex-1 truncate font-bold text-slate-900 dark:text-white">{member.email ?? member.userId}</span>
               <div className="flex items-center gap-2">
                 {canManage && member.role !== 'owner' ? (
                   <select
@@ -230,7 +230,7 @@ export function SharedCalendarsPanel() {
         {sentInvitations.length ? (
           sentInvitations.map((invitation) => (
             <div key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-cyan-500/10 bg-white/60 p-3 text-sm dark:bg-slate-950/35">
-              <span className="font-bold text-slate-900 dark:text-white">
+              <span className="min-w-0 flex-1 truncate font-bold text-slate-900 dark:text-white">
                 {invitation.invitedEmail} · {t(`sharing.role.${invitation.role}`)}
               </span>
               {canManage ? (

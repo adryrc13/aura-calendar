@@ -1,4 +1,5 @@
 import type { Task } from '../../domain/tasks/task';
+import { TASK_COLORS } from '../../domain/tasks/task';
 import { addDays, addMonths, formatMonthTitle, formatShortDate, formatWeekdayShort, parseInputDate, todayInputValue } from '../../shared/date';
 import { Icon } from '../../shared/icons';
 import { useI18n } from '../../shared/i18n';
@@ -88,7 +89,8 @@ export function MonthView({
                   {day.tasks.slice(0, 3).map((task) => (
                     <span
                       key={task.id}
-                      className={`h-1.5 w-1.5 rounded-full ${task.completed ? 'bg-emerald-400' : 'bg-current'}`}
+                      className={`h-1.5 w-1.5 rounded-full ring-1 ring-white/60 dark:ring-slate-950/60 ${task.completed ? 'opacity-60' : ''}`}
+                      style={{ backgroundColor: taskColor(task) }}
                     />
                   ))}
                   {day.tasks.length > 3 ? <span className="text-[10px] font-bold">+{day.tasks.length - 3}</span> : null}
@@ -352,4 +354,8 @@ function toDateValue(date: Date) {
 
 function weekHeaders(language: 'es' | 'en') {
   return language === 'en' ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'] : ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+}
+
+function taskColor(task: Task) {
+  return TASK_COLORS.find((color) => color.value === task.color)?.swatch ?? '#94a3b8';
 }

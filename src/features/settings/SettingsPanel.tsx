@@ -57,35 +57,31 @@ export function SettingsPanel() {
   }
 
   return (
-    <section className="space-y-5">
-      <div className="aura-card p-5">
+    <section className="space-y-4">
+      <div className="aura-card p-4">
         <p className="aura-label">{t('settings.title')}</p>
-        <h2 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">{t('settings.heading')}</h2>
-        <p className="aura-muted mt-3 text-sm leading-relaxed">{t('settings.description')}</p>
+        <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{t('settings.heading')}</h2>
+        <p className="aura-muted mt-2 text-xs leading-relaxed">{t('settings.description')}</p>
       </div>
 
-      <AccountSyncPanel />
-
-      <SharedCalendarsPanel />
-
-      <div className="aura-card p-5">
+      <div className="aura-card p-4">
         <div className="flex items-center justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <p className="aura-label">{t('language.title')}</p>
             <h3 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
               {language === 'en' ? t('language.english') : t('language.spanish')}
             </h3>
-            <p className="aura-muted mt-2 text-sm leading-relaxed">{t('language.description')}</p>
+            <p className="aura-muted mt-1 text-xs leading-relaxed">{t('language.description')}</p>
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="mt-3 grid grid-cols-2 gap-2">
           <LanguageButton value="es" current={language} onSelect={setLanguage} label={t('language.spanish')} />
           <LanguageButton value="en" current={language} onSelect={setLanguage} label={t('language.english')} />
         </div>
       </div>
 
-      <div className="aura-card p-5">
+      <div className="aura-card p-4">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="aura-label">{t('settings.theme')}</p>
@@ -93,47 +89,69 @@ export function SettingsPanel() {
               {t('settings.mode', { mode: theme })}
             </h3>
           </div>
-          <button type="button" onClick={toggleTheme} className="aura-secondary flex items-center gap-2">
+          <button type="button" onClick={toggleTheme} className="aura-secondary flex items-center gap-2 px-4 py-2 text-sm">
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} className="h-5 w-5" />
             {t('settings.changeTheme')}
           </button>
         </div>
       </div>
 
-      <div className="aura-card p-5">
+      <div className="aura-card p-4">
         <p className="aura-label">{t('settings.notifications')}</p>
         <h3 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
           {t('settings.notificationStatus', { status: labelFor(permission, t) })}
         </h3>
-        <p className="aura-muted mt-3 text-sm leading-relaxed">{t('settings.notificationsDescription')}</p>
-        <p className="aura-muted mt-2 text-sm leading-relaxed">
+        <p className="aura-muted mt-2 text-xs leading-relaxed">{t('settings.notificationsDescription')}</p>
+        <p className="aura-muted mt-1 text-xs leading-relaxed">
           {t('settings.exactAlarmStatus', { status: labelFor(exactAlarmPermission, t) })}
         </p>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <button type="button" onClick={handleRequestPermission} className="aura-primary">
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <button type="button" onClick={handleRequestPermission} className="aura-primary px-4 py-2 text-sm">
             {t('settings.requestPermission')}
           </button>
-          <button type="button" onClick={handleRequestExactAlarmPermission} className="aura-secondary">
+          <button type="button" onClick={handleRequestExactAlarmPermission} className="aura-secondary px-4 py-2 text-sm">
             {t('settings.openExactAlarmSettings')}
           </button>
-          <button type="button" onClick={handleTestNotification} className="aura-primary">
+          <button type="button" onClick={handleTestNotification} className="aura-primary px-4 py-2 text-sm">
             {t('settings.testNotification')}
           </button>
         </div>
 
-        {testMessage ? <p className="aura-muted mt-3 text-sm font-semibold">{testMessage}</p> : null}
+        {testMessage ? <p className="aura-muted mt-3 text-xs font-semibold">{testMessage}</p> : null}
       </div>
 
-      <div className="aura-card p-5">
-        <p className="aura-label">{t('settings.futurePhases')}</p>
-        <div className="aura-muted mt-3 grid gap-2 text-sm">
+      <details className="aura-card p-4">
+        <summary className="cursor-pointer list-none text-sm font-black text-slate-950 dark:text-white">
+          <span className="aura-label block">{t('sync.title')}</span>
+          {t('sync.localMode')} / {t('sync.remoteActive')}
+        </summary>
+        <div className="mt-4">
+          <AccountSyncPanel />
+        </div>
+      </details>
+
+      <details className="aura-card p-4">
+        <summary className="cursor-pointer list-none">
+          <span className="aura-label block">{t('sharing.title')}</span>
+          <span className="text-sm font-black text-slate-950 dark:text-white">{t('sharing.sharedCalendars')}</span>
+        </summary>
+        <div className="mt-4">
+          <SharedCalendarsPanel />
+        </div>
+      </details>
+
+      <details className="aura-card p-4">
+        <summary className="cursor-pointer list-none">
+          <span className="aura-label">{t('settings.futurePhases')}</span>
+        </summary>
+        <div className="aura-muted mt-3 grid gap-2 text-xs">
           <p>{t('settings.future.recurrencesAttachments')}</p>
           <p>{t('settings.future.storage')}</p>
           <p>{t('settings.future.sharedCalendars')}</p>
           <p>{t('settings.future.native')}</p>
         </div>
-      </div>
+      </details>
     </section>
   );
 }

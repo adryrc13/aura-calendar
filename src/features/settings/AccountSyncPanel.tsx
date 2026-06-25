@@ -148,19 +148,19 @@ export function AccountSyncPanel() {
 
   return (
     <>
-      <div className="aura-card p-5">
+      <div className="aura-card p-4">
         <div className="flex items-start justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <p className="aura-label">{t('sync.title')}</p>
             <h3 className="mt-1 text-xl font-black text-slate-950 dark:text-white">{currentStateLabel}</h3>
-            <p className="aura-muted mt-3 text-sm leading-relaxed">{t('sync.description')}</p>
+            <p className="aura-muted mt-2 text-xs leading-relaxed">{t('sync.description')}</p>
           </div>
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-cyan-50 text-cyan-700 shadow-[0_0_22px_rgba(34,211,238,0.18)] dark:bg-cyan-500/10 dark:text-cyan-200">
             <Icon name="settings" className="h-6 w-6" />
           </span>
         </div>
 
-        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-4">
+        <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
           <StatusChip label={t('sync.status')} value={currentStateLabel} tone={repositoryMode === 'remote' ? 'ok' : 'neutral'} />
           <StatusChip label={t('sync.supabase')} value={supabaseLabel} tone={remoteAvailable ? 'ok' : isConfigured ? 'neutral' : 'warn'} />
           <StatusChip label={t('sync.user')} value={isLoadingSession ? t('sync.checking') : user?.email ?? t('sync.notConnected')} tone={user ? 'ok' : 'neutral'} />
@@ -173,29 +173,29 @@ export function AccountSyncPanel() {
           </p>
         ) : null}
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <button type="button" className="aura-secondary" onClick={() => setAuthMode('login')} disabled={!isConfigured}>
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <button type="button" className="aura-secondary px-4 py-2 text-sm" onClick={() => setAuthMode('login')} disabled={!isConfigured}>
             {t('sync.signIn')}
           </button>
-          <button type="button" className="aura-primary" onClick={() => setAuthMode('register')} disabled={!isConfigured}>
+          <button type="button" className="aura-primary px-4 py-2 text-sm" onClick={() => setAuthMode('register')} disabled={!isConfigured}>
             {t('sync.register')}
           </button>
-          <button type="button" className="aura-danger" onClick={handleSignOut} disabled={!isConfigured || !user}>
+          <button type="button" className="aura-danger px-4 py-2 text-sm" onClick={handleSignOut} disabled={!isConfigured || !user}>
             {t('sync.signOut')}
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-4">
-          <button type="button" className="aura-primary" onClick={handleActivateRemoteSync} disabled={!remoteAvailable || isSyncActionRunning}>
+        <div className="mt-3 grid gap-2 sm:grid-cols-4">
+          <button type="button" className="aura-primary px-4 py-2 text-sm" onClick={handleActivateRemoteSync} disabled={!remoteAvailable || isSyncActionRunning}>
             {t('sync.enableRemote')}
           </button>
-          <button type="button" className="aura-secondary" onClick={handleMigrateLocalTasks} disabled={!remoteAvailable || isSyncActionRunning}>
+          <button type="button" className="aura-secondary px-4 py-2 text-sm" onClick={handleMigrateLocalTasks} disabled={!remoteAvailable || isSyncActionRunning}>
             {t('sync.migrateLocal')}
           </button>
-          <button type="button" className="aura-secondary" onClick={handleMigrateLocalAttachments} disabled={!remoteAvailable || isSyncActionRunning}>
+          <button type="button" className="aura-secondary px-4 py-2 text-sm" onClick={handleMigrateLocalAttachments} disabled={!remoteAvailable || isSyncActionRunning}>
             {t('sync.migrateLocalAttachments')}
           </button>
-          <button type="button" className="aura-secondary" onClick={handleUseLocalOnly} disabled={repositoryMode === 'local' || isSyncActionRunning}>
+          <button type="button" className="aura-secondary px-4 py-2 text-sm" onClick={handleUseLocalOnly} disabled={repositoryMode === 'local' || isSyncActionRunning}>
             {t('sync.useLocalOnly')}
           </button>
         </div>
