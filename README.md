@@ -45,7 +45,7 @@ El orden importa: `sharing.sql` extiende las policies base para calendarios comp
 
 ## Android / Capacitor
 
-Fase 7 integra Capacitor y crea la plataforma Android, pero todavía no implementa notificaciones nativas, alarmas nativas, APK/AAB final ni publicación en Play Store.
+Aura Calendar usa Capacitor para generar APK Android. La publicación en Play Store y la firma final quedan fuera de esta fase.
 
 ### Requisitos
 
@@ -70,6 +70,9 @@ npm run android:build:web
 npm run android:sync
 npm run cap:sync
 npm run cap:open:android
+npm run android:assemble:debug
+npm run android:assemble:release
+npm run android:bundle:release
 ```
 
 ### Generar APK de prueba
@@ -78,6 +81,47 @@ npm run cap:open:android
 2. Abrí Android Studio con `npm run cap:open:android` o `npx cap open android`.
 3. Esperá a que Gradle sincronice el proyecto.
 4. Desde Android Studio, usá **Build > Build Bundle(s) / APK(s) > Build APK(s)** para una APK de prueba.
+
+### Build Android release
+
+Debug APK y release APK/AAB no son lo mismo:
+
+- **Debug APK**: build de desarrollo, firmada con la clave debug local de Android. Sirve para probar en tu dispositivo.
+- **Release APK**: build de release para distribución manual o pruebas cerradas. Debe firmarse con tu keystore de release.
+- **Release AAB**: Android App Bundle para Play Store. Play Store queda para una fase posterior.
+
+Comandos desde la raíz:
+
+```bash
+npm run android:sync
+npm run android:assemble:debug
+npm run android:assemble:release
+npm run android:bundle:release
+```
+
+Abrir Android Studio:
+
+```bash
+npm run cap:open:android
+```
+
+Firma de release:
+
+1. Creá una keystore desde Android Studio (**Build > Generate Signed Bundle / APK**) o con `keytool`.
+2. Guardá la keystore fuera de Git.
+3. Copiá `android/keystore.properties.example` como `android/keystore.properties`.
+4. Completá localmente `storeFile`, `storePassword`, `keyAlias` y `keyPassword`.
+5. No subas `android/keystore.properties`, `.jks` ni `.keystore`.
+
+Si perdés la keystore de release, no vas a poder actualizar versiones firmadas con esa misma clave. Esto NO es un detalle menor: la firma es la identidad de la app.
+
+Notas de seguridad:
+
+- `.env.local` está ignorado por Git y no debe subirse.
+- `VITE_SUPABASE_ANON_KEY` es una clave pública de frontend; no es `service_role`, pero tampoco conviene confundirla con una clave privada.
+- Nunca uses ni subas `service_role` en frontend/Android.
+- No se generan ni se suben APK/AAB, keystores ni contraseñas.
+- Play Store queda para una fase posterior.
 
 ### Notas Android
 
@@ -117,7 +161,7 @@ npm run cap:open:android
 | Asistente | Parser local ES/EN por texto, Web Speech API en navegador/PWA y voz nativa en Android Capacitor |
 | Notificaciones Android | Recordatorios nativos locales con Capacitor Local Notifications |
 | PWA | `manifest.webmanifest`, `offline.html` y service worker de producción |
-| Android | Capacitor + plataforma `android/` preparada para Android Studio |
+| Android | Capacitor + versionado `0.9.0-beta` / `versionCode 9` preparado para APK/AAB release |
 | Tests internos | `npm run test:internal` |
 
 ## Seguridad y permisos
@@ -158,6 +202,4 @@ La app sigue funcionando como web/PWA. Capacitor no reemplaza la versión web: c
 
 ## Pendiente
 
-- Fase 8: notificaciones/alarmas nativas Android.
-- Build APK/AAB final y firma de release.
 - Publicación en Play Store si aplica.

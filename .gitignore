@@ -8,3 +8,14 @@ dist
 !.env.local.example
 # Android Studio local project settings
 android/.idea/
+*.jks
+*.keystore
+key.properties
+keystore.properties
+android/key.properties
+android/keystore.properties
+android/app/*.jks
+android/app/*.keystore
+android/app/build/
+android/**/*.apk
+android/**/*.aab
