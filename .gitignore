@@ -19,3 +19,5 @@ android/app/*.keystore
 android/app/build/
 android/**/*.apk
 android/**/*.aab
+# Android signed release outputs
+android/app/release/
