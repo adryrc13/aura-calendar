@@ -83,8 +83,10 @@ npm run cap:open:android
 
 - `capacitor.config.ts` usa `appId: com.adryrc13.auracalendar`, `appName: Aura Calendar` y `webDir: dist`.
 - La carpeta `android/` es el proyecto nativo generado por Capacitor.
-- El manifest Android queda en orientación portrait y solo declara el permiso `INTERNET`.
-- El micrófono actual usa Web Speech API. En Android WebView puede no comportarse igual que en Chrome; una integración nativa de voz queda fuera de esta fase.
+- El manifest Android queda en orientación portrait y declara solo `INTERNET` y `RECORD_AUDIO`.
+- En navegador/PWA, el asistente por voz usa Web Speech API cuando está disponible.
+- En Android Capacitor, el asistente por voz usa reconocimiento nativo mediante `@capgo/capacitor-speech-recognition`; requiere el permiso Android `RECORD_AUDIO`.
+- Las notificaciones y alarmas nativas siguen pendientes para Fase 8.
 - Supabase sigue usando `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`. No uses `service_role` en Android ni en frontend.
 - Si en el futuro se agregan flujos OAuth/deep links, habrá que revisar redirect URLs en Supabase. El flujo actual email/password no requiere valores secretos nuevos.
 
@@ -102,7 +104,7 @@ npm run cap:open:android
 | Supabase Storage | Bucket privado para adjuntos remotos |
 | Calendarios compartidos | Roles owner/editor/viewer e invitaciones |
 | i18n | Español/Inglés con persistencia de idioma |
-| Asistente | Parser local ES/EN por texto y Web Speech API si el navegador lo soporta |
+| Asistente | Parser local ES/EN por texto, Web Speech API en navegador/PWA y voz nativa en Android Capacitor |
 | PWA | `manifest.webmanifest`, `offline.html` y service worker de producción |
 | Android | Capacitor + plataforma `android/` preparada para Android Studio |
 | Tests internos | `npm run test:internal` |

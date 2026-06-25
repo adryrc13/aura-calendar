@@ -1,4 +1,8 @@
 import { speechLanguageFor, useI18n } from '../../shared/i18n';
+import {
+  SpeechRecognitionServiceError,
+  startListening as startSpeechRecognition,
+} from './speechRecognitionService';
 
 type VoiceStatus = 'idle' | 'listening' | 'unsupported' | 'error';
 
@@ -10,52 +14,39 @@ export function useVoiceRecognition({ onTranscript }: UseVoiceRecognitionParams)
   const { language, t } = useI18n();
 
   async function startListening(onStatus?: (message: string, status: VoiceStatus) => void) {
-    const SpeechRecognitionConstructor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
-
-    if (!SpeechRecognitionConstructor) {
-      onStatus?.(t('assistant.unsupported'), 'unsupported');
-      return;
-    }
-
     try {
-      if (navigator.mediaDevices?.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((track) => track.stop());
+      onStatus?.(t('assistant.listeningStatus'), 'listening');
+      const result = await startSpeechRecognition({ language: speechLanguageFor(language) });
+      const transcript = result.transcript.trim();
+
+      if (!transcript) {
+        onStatus?.(t('assistant.noTranscript'), 'idle');
+        return;
       }
 
-      const recognition = new SpeechRecognitionConstructor();
-      let hasResult = false;
-      recognition.lang = speechLanguageFor(language);
-      recognition.interimResults = false;
-      recognition.continuous = false;
-      onStatus?.(t('assistant.listeningStatus'), 'listening');
-
-      recognition.onresult = (event) => {
-        hasResult = true;
-        const transcript = Array.from(event.results)
-          .map((result) => result[0]?.transcript)
-          .filter(Boolean)
-          .join(' ');
-
-        onStatus?.(transcript ? t('assistant.detectedTranscript', { transcript }) : t('assistant.noTranscript'), 'idle');
-
-        if (transcript) {
-          onTranscript(transcript);
+      onStatus?.(t('assistant.detectedTranscript', { transcript }), 'idle');
+      onTranscript(transcript);
+    } catch (error) {
+      if (error instanceof SpeechRecognitionServiceError) {
+        if (error.code === 'unsupported') {
+          onStatus?.(t('assistant.unsupported'), 'unsupported');
+          return;
         }
-      };
 
-      recognition.onerror = (event) => {
-        onStatus?.(t('assistant.listenError', { error: event.error }), 'error');
-      };
-
-      recognition.onend = () => {
-        if (!hasResult) {
-          onStatus?.(t('assistant.listenEnd'), 'idle');
+        if (error.code === 'permission-denied') {
+          onStatus?.(t('assistant.microphonePermissionDenied'), 'error');
+          return;
         }
-      };
 
-      recognition.start();
-    } catch {
+        if (error.code === 'no-transcript') {
+          onStatus?.(t('assistant.noTranscript'), 'idle');
+          return;
+        }
+
+        onStatus?.(t('assistant.listenError', { error: error.message }), 'error');
+        return;
+      }
+
       onStatus?.(t('assistant.microphoneError'), 'error');
     }
   }

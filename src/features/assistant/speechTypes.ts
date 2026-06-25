@@ -18,6 +18,7 @@ declare global {
     onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
     onend: (() => void) | null;
     start(): void;
+    stop(): void;
   }
 
   interface SpeechRecognitionEvent {
