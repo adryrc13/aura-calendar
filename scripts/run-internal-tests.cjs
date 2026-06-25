@@ -20,6 +20,7 @@ const { runAttachmentInternalTests } = require('../src/domain/tasks/attachments.
 const { runRecurrenceInternalTests } = require('../src/domain/tasks/recurrence.internalTests.ts');
 const { runSpanishTaskParserInternalTests } = require('../src/features/assistant/spanishTaskParser.internalTests.ts');
 const { runEnglishTaskParserInternalTests } = require('../src/features/assistant/englishTaskParser.internalTests.ts');
+const { runNativeNotificationPlannerInternalTests } = require('../src/features/notifications/nativeNotificationPlanner.internalTests.ts');
 const { runSupabaseTaskMapperInternalTests } = require('../src/infrastructure/supabase/supabaseTaskMapper.internalTests.ts');
 const {
   runSupabaseAttachmentRepositoryInternalTests,
@@ -34,6 +35,7 @@ const results = [
   ...runRecurrenceInternalTests(),
   ...runSpanishTaskParserInternalTests(),
   ...runEnglishTaskParserInternalTests(),
+  ...runNativeNotificationPlannerInternalTests(),
   ...runSupabaseTaskMapperInternalTests(),
   ...runSupabaseAttachmentRepositoryInternalTests(),
   ...runSupabaseSharingRepositoryInternalTests(),

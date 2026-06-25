@@ -83,12 +83,22 @@ npm run cap:open:android
 
 - `capacitor.config.ts` usa `appId: com.adryrc13.auracalendar`, `appName: Aura Calendar` y `webDir: dist`.
 - La carpeta `android/` es el proyecto nativo generado por Capacitor.
-- El manifest Android queda en orientación portrait y declara solo `INTERNET` y `RECORD_AUDIO`.
+- El manifest Android queda en orientación portrait y declara `INTERNET`, `RECORD_AUDIO`, `POST_NOTIFICATIONS` y `SCHEDULE_EXACT_ALARM`.
 - En navegador/PWA, el asistente por voz usa Web Speech API cuando está disponible.
 - En Android Capacitor, el asistente por voz usa reconocimiento nativo mediante `@capgo/capacitor-speech-recognition`; requiere el permiso Android `RECORD_AUDIO`.
-- Las notificaciones y alarmas nativas siguen pendientes para Fase 8.
+- En Android Capacitor, los recordatorios usan notificaciones locales nativas mediante `@capacitor/local-notifications`.
 - Supabase sigue usando `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`. No uses `service_role` en Android ni en frontend.
 - Si en el futuro se agregan flujos OAuth/deep links, habrá que revisar redirect URLs en Supabase. El flujo actual email/password no requiere valores secretos nuevos.
+
+### Notificaciones nativas Android
+
+- Plugin usado: `@capacitor/local-notifications`.
+- Permisos añadidos: `POST_NOTIFICATIONS` para Android 13+ y `SCHEDULE_EXACT_ALARM` para recordatorios exactos en Android 12+. Se mantienen `INTERNET` y `RECORD_AUDIO`.
+- Desde **Ajustes > Notificaciones** podés pedir permiso de notificaciones, abrir el ajuste de alarma exacta y programar una notificación de prueba a 10 segundos.
+- Cada tarea con recordatorio usa un ID numérico estable derivado de `task.id`; al editar se cancela y reprograma el mismo ID, y al eliminar/completar se cancela.
+- Las tareas recurrentes programan solo la próxima ocurrencia futura; al abrir o sincronizar la app se reconcilia de forma idempotente.
+- Limitaciones Android: Android 13 requiere permiso de notificaciones; Android 12+ puede requerir habilitar alarma exacta; Doze/ahorro de batería o fabricantes agresivos pueden retrasar notificaciones.
+- No hay push notifications remotas, Firebase/FCM, Play Store ni APK firmada en esta fase.
 
 ## Estado implementado
 
@@ -105,6 +115,7 @@ npm run cap:open:android
 | Calendarios compartidos | Roles owner/editor/viewer e invitaciones |
 | i18n | Español/Inglés con persistencia de idioma |
 | Asistente | Parser local ES/EN por texto, Web Speech API en navegador/PWA y voz nativa en Android Capacitor |
+| Notificaciones Android | Recordatorios nativos locales con Capacitor Local Notifications |
 | PWA | `manifest.webmanifest`, `offline.html` y service worker de producción |
 | Android | Capacitor + plataforma `android/` preparada para Android Studio |
 | Tests internos | `npm run test:internal` |

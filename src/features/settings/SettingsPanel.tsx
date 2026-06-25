@@ -3,33 +3,57 @@ import { useTheme } from '../../app/providers/ThemeProvider';
 import { Icon } from '../../shared/icons';
 import { useI18n, type Language } from '../../shared/i18n';
 import {
-  getNotificationPermission,
-  requestNotificationPermission,
-  showBrowserNotification,
   type NotificationPermissionState,
 } from '../../infrastructure/notifications/browserNotifications';
+import {
+  checkExactAlarmPermission,
+  checkNotificationPermission,
+  requestExactAlarmPermission,
+  requestNotificationPermission,
+  scheduleTestNotification,
+  type NativeExactAlarmPermissionState,
+  type NativeNotificationPermissionState,
+} from '../notifications/nativeNotificationService';
 import { AccountSyncPanel } from './AccountSyncPanel';
 import { SharedCalendarsPanel } from './SharedCalendarsPanel';
 
 export function SettingsPanel() {
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useI18n();
-  const [permission, setPermission] = useState<NotificationPermissionState>(() => getNotificationPermission());
+  const [permission, setPermission] = useState<NativeNotificationPermissionState>('unsupported');
+  const [exactAlarmPermission, setExactAlarmPermission] = useState<NativeExactAlarmPermissionState>('unsupported');
   const [testMessage, setTestMessage] = useState('');
 
   useEffect(() => {
-    setPermission(getNotificationPermission());
+    refreshNotificationState();
   }, []);
 
   async function handleRequestPermission() {
     const nextPermission = await requestNotificationPermission();
     setPermission(nextPermission);
-    setTestMessage(nextPermission === 'granted' ? t('settings.permissionGranted') : t('settings.permissionDenied'));
+    setTestMessage(nextPermission === 'granted' ? t('settings.notificationPermissionGranted') : t('settings.notificationPermissionDenied'));
+    window.dispatchEvent(new Event('aura:notification-permission-changed'));
   }
 
-  function handleTestNotification() {
-    const wasShown = showBrowserNotification('Aura Calendar', t('settings.testNotificationBody'), false);
-    setTestMessage(wasShown ? t('settings.testNotificationSent') : t('settings.testNotificationFailed'));
+  async function handleRequestExactAlarmPermission() {
+    const nextPermission = await requestExactAlarmPermission();
+    setExactAlarmPermission(nextPermission);
+    setTestMessage(nextPermission === 'granted' ? t('settings.exactAlarmGranted') : t('settings.exactAlarmDenied'));
+    window.dispatchEvent(new Event('aura:notification-permission-changed'));
+  }
+
+  async function handleTestNotification() {
+    const result = await scheduleTestNotification('Aura Calendar', t('settings.testNotificationBody'), 10);
+    setTestMessage(result.status === 'scheduled' ? t('settings.testNotificationScheduled') : t('settings.testNotificationFailed'));
+  }
+
+  async function refreshNotificationState() {
+    const [nextPermission, nextExactAlarmPermission] = await Promise.all([
+      checkNotificationPermission(),
+      checkExactAlarmPermission(),
+    ]);
+    setPermission(nextPermission);
+    setExactAlarmPermission(nextExactAlarmPermission);
   }
 
   return (
@@ -82,10 +106,16 @@ export function SettingsPanel() {
           {t('settings.notificationStatus', { status: labelFor(permission, t) })}
         </h3>
         <p className="aura-muted mt-3 text-sm leading-relaxed">{t('settings.notificationsDescription')}</p>
+        <p className="aura-muted mt-2 text-sm leading-relaxed">
+          {t('settings.exactAlarmStatus', { status: labelFor(exactAlarmPermission, t) })}
+        </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <button type="button" onClick={handleRequestPermission} className="aura-primary">
             {t('settings.requestPermission')}
+          </button>
+          <button type="button" onClick={handleRequestExactAlarmPermission} className="aura-secondary">
+            {t('settings.openExactAlarmSettings')}
           </button>
           <button type="button" onClick={handleTestNotification} className="aura-primary">
             {t('settings.testNotification')}
@@ -136,9 +166,10 @@ function LanguageButton({
   );
 }
 
-function labelFor(permission: NotificationPermissionState, t: (key: string) => string) {
+function labelFor(permission: NativeNotificationPermissionState | NativeExactAlarmPermissionState | NotificationPermissionState, t: (key: string) => string) {
   if (permission === 'unsupported') return t('settings.permission.unsupported');
   if (permission === 'granted') return t('settings.permission.granted');
   if (permission === 'denied') return t('settings.permission.denied');
+  if (permission === 'prompt-with-rationale') return t('settings.permission.default');
   return t('settings.permission.default');
 }

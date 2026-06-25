@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Task, TaskDraft, TaskFormValues } from '../domain/tasks/task';
-import { expandTasksInRange, isRecurringTask, isVirtualOccurrence } from '../domain/tasks/recurrence';
+import { isRecurringTask, isVirtualOccurrence } from '../domain/tasks/recurrence';
 import { useReminderScheduler } from '../infrastructure/notifications/reminderScheduler';
 import { AssistantPanel } from '../features/assistant/AssistantPanel';
 import { parseTaskCommand } from '../features/assistant/taskCommandParser';
@@ -9,7 +9,7 @@ import { AgendaView, DayView, MonthView } from '../features/calendar/CalendarVie
 import { SettingsPanel } from '../features/settings/SettingsPanel';
 import { TaskForm } from '../features/tasks/TaskForm';
 import { useTasks } from '../features/tasks/useTasks';
-import { addDays, parseInputDate, todayInputValue, toDateInputValue } from '../shared/date';
+import { parseInputDate, todayInputValue } from '../shared/date';
 import { Icon, type IconName } from '../shared/icons';
 import { useI18n } from '../shared/i18n';
 import { useTheme } from './providers/ThemeProvider';
@@ -63,16 +63,7 @@ export function App() {
   const [seriesAction, setSeriesAction] = useState<SeriesActionState | null>(null);
   const [voiceStatus, setVoiceStatus] = useState('');
 
-  const reminderTasks = useMemo(
-    () =>
-      expandTasksInRange(tasks, {
-        start: todayInputValue(),
-        end: toDateInputValue(addDays(new Date(), 31)),
-      }),
-    [tasks],
-  );
-
-  useReminderScheduler(reminderTasks);
+  useReminderScheduler(tasks);
 
   const selectedDateObject = useMemo(() => parseInputDate(selectedDate), [selectedDate]);
   const { startListening } = useVoiceRecognition({

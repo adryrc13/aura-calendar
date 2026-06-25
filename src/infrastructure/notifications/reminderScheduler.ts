@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
 import type { Task } from '../../domain/tasks/task';
+import { expandTasksInRange } from '../../domain/tasks/recurrence';
+import { addDays, todayInputValue, toDateInputValue } from '../../shared/date';
 import { useI18n } from '../../shared/i18n';
+import { isNativeAndroidNotificationsRuntime, reconcileTaskReminders } from '../../features/notifications/nativeNotificationService';
 import { showBrowserNotification } from './browserNotifications';
 
 function toReminderTimestamp(task: Task) {
@@ -12,8 +15,32 @@ export function useReminderScheduler(tasks: Task[]) {
   const { t } = useI18n();
 
   useEffect(() => {
+    let isActive = true;
+
+    if (isNativeAndroidNotificationsRuntime()) {
+      const reconcile = () => reconcileTaskReminders(tasks).catch((error) => {
+        if (isActive) {
+          console.warn('No se pudieron reconciliar las notificaciones nativas.', error);
+        }
+      });
+
+      reconcile();
+      window.addEventListener('aura:notification-permission-changed', reconcile);
+      document.addEventListener('visibilitychange', reconcile);
+
+      return () => {
+        isActive = false;
+        window.removeEventListener('aura:notification-permission-changed', reconcile);
+        document.removeEventListener('visibilitychange', reconcile);
+      };
+    }
+
     const now = Date.now();
-    const timeouts = tasks
+    const browserReminderTasks = expandTasksInRange(tasks, {
+      start: todayInputValue(),
+      end: toDateInputValue(addDays(new Date(), 31)),
+    });
+    const timeouts = browserReminderTasks
       .filter((task) => task.reminderEnabled && !task.completed)
       .map((task) => {
         const delay = toReminderTimestamp(task) - now;
@@ -36,6 +63,7 @@ export function useReminderScheduler(tasks: Task[]) {
       .filter((timeoutId): timeoutId is number => typeof timeoutId === 'number');
 
     return () => {
+      isActive = false;
       timeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
     };
   }, [tasks, t]);

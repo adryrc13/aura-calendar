@@ -170,6 +170,10 @@ export function runSupabaseSharingRepositoryInternalTests() {
       ok: !permissionForRole('viewer').canWriteTasks,
     },
     {
+      name: 'viewer no puede crear tareas con recordatorio desde formulario o asistente',
+      ok: !permissionForRole('viewer').canWriteTasks,
+    },
+    {
       name: 'editor si puede modificar tareas y adjuntos',
       ok: permissionForRole('editor').canWriteTasks,
     },
