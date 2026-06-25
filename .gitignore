@@ -6,3 +6,5 @@ dist
 .env.*.local
 !.env.example
 !.env.local.example
+# Android Studio local project settings
+android/.idea/
