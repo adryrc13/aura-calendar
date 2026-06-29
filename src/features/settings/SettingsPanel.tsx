@@ -102,21 +102,29 @@ export function SettingsPanel() {
           {t('settings.notificationStatus', { status: labelFor(permission, t) })}
         </h3>
         <p className="aura-muted mt-2 text-xs leading-relaxed">{t('settings.notificationsDescription')}</p>
-        <p className="aura-muted mt-1 text-xs leading-relaxed">
-          {t('settings.exactAlarmStatus', { status: labelFor(exactAlarmPermission, t) })}
-        </p>
 
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <button type="button" onClick={handleRequestPermission} className="aura-primary px-4 py-2 text-sm">
             {t('settings.requestPermission')}
-          </button>
-          <button type="button" onClick={handleRequestExactAlarmPermission} className="aura-secondary px-4 py-2 text-sm">
-            {t('settings.openExactAlarmSettings')}
           </button>
           <button type="button" onClick={handleTestNotification} className="aura-primary px-4 py-2 text-sm">
             {t('settings.testNotification')}
           </button>
         </div>
+
+        <details className="mt-3 rounded-2xl border border-cyan-500/10 bg-white/45 p-3 dark:bg-slate-950/30">
+          <summary className="cursor-pointer list-none text-xs font-black uppercase tracking-[0.18em] text-cyan-700 dark:text-cyan-200">
+            {t('settings.advancedOptions')}
+          </summary>
+          <div className="mt-3 grid gap-3">
+            <p className="aura-muted text-xs leading-relaxed">
+              {t('settings.exactAlarmStatus', { status: labelFor(exactAlarmPermission, t) })}
+            </p>
+            <button type="button" onClick={handleRequestExactAlarmPermission} className="aura-secondary px-4 py-2 text-sm">
+              {t('settings.openExactAlarmSettings')}
+            </button>
+          </div>
+        </details>
 
         {testMessage ? <p className="aura-muted mt-3 text-xs font-semibold">{testMessage}</p> : null}
       </div>

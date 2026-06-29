@@ -39,7 +39,7 @@ export function MonthView({
   const selectedTasks = tasksForDate(tasks, selectedDate);
 
   return (
-    <section className="space-y-5">
+    <section className="space-y-3 sm:space-y-5">
       <CalendarToolbar
         title={formatMonthTitle(monthDate, language)}
         onPrevious={() => onChangeMonth(addMonths(monthDate, -1))}
@@ -51,7 +51,7 @@ export function MonthView({
         }}
       />
 
-      <div className="aura-card p-3">
+      <div className="aura-card p-2.5 sm:p-3">
         <div className="grid grid-cols-7 px-1 pb-2 text-center text-[11px] font-black uppercase tracking-wide text-cyan-700/70 dark:text-cyan-200/70">
           {weekHeaders(language).map((day) => (
             <span key={day}>{day}</span>
@@ -61,6 +61,8 @@ export function MonthView({
         <div className="grid grid-cols-7 gap-1">
           {days.map((day) => {
             const isSelected = day.value === selectedDate;
+            const visibleTasks = day.tasks.slice(0, 2);
+            const hiddenTasksCount = day.tasks.length - visibleTasks.length;
             return (
               <button
                 key={day.value}
@@ -69,7 +71,7 @@ export function MonthView({
                 onDoubleClick={() => {
                   if (canWriteTasks) onCreateTask(day.value);
                 }}
-                className={`min-h-20 rounded-2xl border p-2 text-left transition ${
+                className={`min-h-[4.35rem] overflow-hidden rounded-2xl border p-1.5 text-left transition sm:min-h-20 sm:p-2 ${
                   isSelected
                     ? 'border-cyan-300 bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25'
                     : day.isCurrentMonth
@@ -85,15 +87,21 @@ export function MonthView({
                 >
                   {day.date.getDate()}
                 </span>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {day.tasks.slice(0, 3).map((task) => (
+                <div className="mt-1.5 grid gap-0.5">
+                  {visibleTasks.map((task) => (
                     <span
                       key={task.id}
-                      className={`h-1.5 w-1.5 rounded-full ring-1 ring-white/60 dark:ring-slate-950/60 ${task.completed ? 'opacity-60' : ''}`}
-                      style={{ backgroundColor: taskColor(task) }}
-                    />
+                      className={`flex min-w-0 items-center gap-1 rounded-full px-1 py-0.5 text-[9px] font-black leading-none ring-1 ring-white/55 dark:ring-slate-950/55 sm:text-[10px] ${task.completed ? 'opacity-55 line-through' : ''} ${
+                        isSelected ? 'bg-white/90' : 'bg-white/55 dark:bg-slate-950/45'
+                      }`}
+                      style={taskLabelStyle(task)}
+                      title={task.title}
+                    >
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: taskColor(task) }} />
+                      <span className="min-w-0 truncate">{shortTaskLabel(task.title)}</span>
+                    </span>
                   ))}
-                  {day.tasks.length > 3 ? <span className="text-[10px] font-bold">+{day.tasks.length - 3}</span> : null}
+                  {hiddenTasksCount > 0 ? <span className="text-[10px] font-black leading-none">+{hiddenTasksCount}</span> : null}
                 </div>
               </button>
             );
@@ -314,7 +322,7 @@ function CalendarToolbar({ title, onPrevious, onNext, onToday }: CalendarToolbar
   const { t } = useI18n();
 
   return (
-    <div className="aura-card p-4">
+    <div className="aura-card p-3 sm:p-4">
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
@@ -340,7 +348,7 @@ function CalendarToolbar({ title, onPrevious, onNext, onToday }: CalendarToolbar
       <button
         type="button"
         onClick={onToday}
-        className="aura-primary mt-4 w-full text-sm"
+        className="aura-primary mt-3 w-full py-2.5 text-sm sm:mt-4 sm:py-3"
       >
         {t('nav.today')}
       </button>
@@ -358,4 +366,17 @@ function weekHeaders(language: 'es' | 'en') {
 
 function taskColor(task: Task) {
   return TASK_COLORS.find((color) => color.value === task.color)?.swatch ?? '#94a3b8';
+}
+
+function shortTaskLabel(title: string) {
+  const words = title.trim().split(/\s+/).filter(Boolean);
+  return words.slice(0, 2).join(' ') || title;
+}
+
+function taskLabelStyle(task: Task) {
+  const color = taskColor(task);
+  return {
+    color,
+    backgroundColor: `${color}1A`,
+  };
 }

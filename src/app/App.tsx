@@ -62,6 +62,9 @@ export function App() {
   const [taskModal, setTaskModal] = useState<TaskModalState | null>(null);
   const [seriesAction, setSeriesAction] = useState<SeriesActionState | null>(null);
   const [voiceStatus, setVoiceStatus] = useState('');
+  const showHomeSummary = activeView !== 'calendar' && activeView !== 'settings';
+  const showAssistantHero = activeView !== 'assistant' && activeView !== 'calendar' && activeView !== 'settings';
+  const showFloatingActions = activeView !== 'settings' && activeView !== 'calendar';
 
   useReminderScheduler(tasks);
 
@@ -286,7 +289,7 @@ export function App() {
         </div>
       </header>
 
-      <main className={`mx-auto max-w-5xl space-y-5 px-4 pt-2 ${activeView === 'settings' ? 'pb-44' : 'pb-36'}`}>
+      <main className={`mx-auto max-w-5xl px-4 pt-2 ${activeView === 'calendar' ? 'space-y-3 pb-40' : activeView === 'settings' ? 'space-y-5 pb-44' : 'space-y-5 pb-36'}`}>
         {taskRepositoryMode === 'remote' && activeCalendar ? (
           <div className="aura-card flex items-center justify-between gap-3 px-4 py-3 text-sm">
             <div className="min-w-0 flex-1">
@@ -303,9 +306,9 @@ export function App() {
           </div>
         ) : null}
 
-        <StatsCard pending={stats.pending} completed={stats.completed} />
+        {showHomeSummary ? <StatsCard pending={stats.pending} completed={stats.completed} /> : null}
 
-        {activeView !== 'assistant' ? <AssistantHero onMicClick={handleStartVoice} disabled={!canWriteActiveCalendar} /> : null}
+        {showAssistantHero ? <AssistantHero onMicClick={handleStartVoice} disabled={!canWriteActiveCalendar} /> : null}
 
         {voiceStatus ? (
           <div className="aura-alert">
@@ -325,7 +328,7 @@ export function App() {
         {renderActiveView()}
       </main>
 
-      {activeView !== 'settings' ? (
+      {showFloatingActions ? (
       <div className="fixed bottom-28 right-4 z-30 flex items-center gap-3 lg:right-[calc((100vw-64rem)/2+1rem)]">
         <button
           type="button"
